@@ -15,6 +15,8 @@ static ngx_rtmp_stream_eof_pt           next_stream_eof;
 static ngx_rtmp_playlist_pt             next_playlist;
 
 
+static char * ngx_rtmp_dash_variant(ngx_conf_t *cf, ngx_command_t *cmd,
+       void *conf);
 static ngx_int_t ngx_rtmp_dash_postconfiguration(ngx_conf_t *cf);
 static void * ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf);
 static char * ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf,
@@ -51,8 +53,16 @@ typedef struct {
 
 
 typedef struct {
+    ngx_str_t                           suffix;
+    ngx_array_t                         args;
+} ngx_rtmp_dash_variant_t;
+
+
+typedef struct {
     ngx_str_t                           playlist;
     ngx_str_t                           playlist_bak;
+    ngx_str_t                           var_playlist;
+    ngx_str_t                           var_playlist_bak;
     ngx_str_t                           name;
     ngx_str_t                           stream;
     ngx_time_t                          start_time;
@@ -72,6 +82,7 @@ typedef struct {
 
     ngx_rtmp_dash_track_t               audio;
     ngx_rtmp_dash_track_t               video;
+    ngx_rtmp_dash_variant_t            *var;
 } ngx_rtmp_dash_ctx_t;
 
 
@@ -108,6 +119,7 @@ typedef struct {
     ngx_uint_t                          winfrags;
     ngx_flag_t                          cleanup;
     ngx_path_t                         *slot;
+    ngx_array_t                        *variant;
 } ngx_rtmp_dash_app_conf_t;
 
 
@@ -167,6 +179,13 @@ static ngx_command_t ngx_rtmp_dash_commands[] = {
       ngx_conf_set_str_slot,
       NGX_RTMP_APP_CONF_OFFSET,
       offsetof(ngx_rtmp_dash_app_conf_t, clock_helper_uri),
+      NULL },
+
+    { ngx_string("dash_variant"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_1MORE,
+      ngx_rtmp_dash_variant,
+      NGX_RTMP_APP_CONF_OFFSET,
+      0,
       NULL },
 
     ngx_null_command
@@ -1022,11 +1041,13 @@ ngx_rtmp_dash_ensure_directory(ngx_rtmp_session_t *s)
 static ngx_int_t
 ngx_rtmp_dash_publish(ngx_rtmp_session_t *s, ngx_rtmp_publish_t *v)
 {
-    u_char                    *p;
+    u_char                    *p, *pp;
     size_t                     len;
     ngx_rtmp_dash_ctx_t       *ctx;
     ngx_rtmp_dash_frag_t      *f;
     ngx_rtmp_dash_app_conf_t  *dacf;
+    ngx_rtmp_dash_variant_t   *var;
+    ngx_uint_t                 n;
 
     dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
     if (dacf == NULL || !dacf->dash || dacf->path.len == 0) {
@@ -1112,6 +1133,44 @@ ngx_rtmp_dash_publish(ngx_rtmp_session_t *s, ngx_rtmp_publish_t *v)
 
     ngx_memcpy(ctx->stream.data, ctx->playlist.data, ctx->stream.len - 1);
     ctx->stream.data[ctx->stream.len - 1] = (dacf->nested ? '/' : '-');
+
+    if (dacf->variant) {
+        var = dacf->variant->elts;
+        for (n = 0; n < dacf->variant->nelts; n++, var++) {
+            if (ctx->name.len > var->suffix.len &&
+                ngx_memcmp(var->suffix.data,
+                    ctx->name.data + ctx->name.len - var->suffix.len,
+                    var->suffix.len)
+                == 0)
+            {
+
+                ctx->var = var;
+
+                len = (size_t) (p - ctx->playlist.data);
+
+                ctx->var_playlist.len = len - var->suffix.len + sizeof(".mpd")
+                    -1;
+                ctx->var_playlist.data = ngx_palloc(s->connection->pool,
+                        ctx->var_playlist.len + 1);
+                pp = ngx_cpymem(ctx->var_playlist.data,
+                        ctx->playlist.data, len - var->suffix.len);
+                pp = ngx_cpymem(pp, ".mpd", sizeof(".mpd") - 1);
+                *pp = 0;
+
+                ctx->var_playlist_bak.len = ctx->var_playlist.len +
+                                            sizeof(".bak") - 1;
+                ctx->var_playlist_bak.data = ngx_palloc(s->connection->pool,
+                                                 ctx->var_playlist_bak.len + 1);
+                pp = ngx_cpymem(ctx->var_playlist_bak.data,
+                                ctx->var_playlist.data,
+                                ctx->var_playlist.len);
+                pp = ngx_cpymem(pp, ".bak", sizeof(".bak") - 1);
+                *pp = 0;
+
+                break;
+            }
+        }
+    }
 
     if (dacf->nested) {
         p = ngx_cpymem(p, "/index.mpd", sizeof("/index.mpd") - 1);
@@ -1639,6 +1698,57 @@ ngx_rtmp_dash_cleanup(void *data)
 #else
     return cleanup->playlen / 500;
 #endif
+}
+
+static char *
+ngx_rtmp_dash_variant(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_rtmp_dash_app_conf_t  *dacf = conf;
+
+    ngx_str_t                *value, *arg;
+    ngx_uint_t                n;
+    ngx_rtmp_dash_variant_t   *var;
+
+    value = cf->args->elts;
+
+    if (dacf->variant == NULL) {
+        dacf->variant = ngx_array_create(cf->pool, 1,
+                                         sizeof(ngx_rtmp_dash_variant_t));
+        if (dacf->variant == NULL) {
+            return NGX_CONF_ERROR;
+        }
+    }
+
+    var = ngx_array_push(dacf->variant);
+    if (var == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    ngx_memzero(var, sizeof(ngx_rtmp_dash_variant_t));
+
+    var->suffix = value[1];
+
+    if (cf->args->nelts == 2) {
+        return NGX_CONF_OK;
+    }
+
+    if (ngx_array_init(&var->args, cf->pool, cf->args->nelts - 2,
+                       sizeof(ngx_str_t))
+        != NGX_OK)
+    {
+        return NGX_CONF_ERROR;
+    }
+
+    arg = ngx_array_push_n(&var->args, cf->args->nelts - 2);
+    if (arg == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    for (n = 2; n < cf->args->nelts; n++) {
+        *arg++ = value[n];
+    }
+
+    return NGX_CONF_OK;
 }
 
 static ngx_int_t
