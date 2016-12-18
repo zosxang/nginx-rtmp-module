@@ -1,6 +1,7 @@
 #ifndef _NGX_RTMP_DASH_TEMPLATES
 #define _NGX_RTMP_DASH_TEMPLATES
 
+
 #define NGX_RTMP_DASH_MANIFEST_HEADER                                          \
     "<?xml version=\"1.0\"?>\n"                                                \
     "<MPD\n"                                                                   \
@@ -22,7 +23,7 @@
     "  <Period start=\"PT0S\" id=\"dash\">\n"
 
 
-#define NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO                             \
+#define NGX_RTMP_DASH_MANIFEST_VIDEO                                           \
     "    <AdaptationSet\n"                                                     \
     "        id=\"1\"\n"                                                       \
     "        startWithSAP=\"1\"\n"                                             \
@@ -30,10 +31,7 @@
     "        maxWidth=\"%ui\"\n"                                               \
     "        maxHeight=\"%ui\"\n"                                              \
     "        maxFrameRate=\"%s\"\n"                                            \
-    "        par=\"%ui:%ui\">\n"
-
-
-#define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO                            \
+    "        par=\"%ui:%ui\">\n"                                               \
     "      <Representation\n"                                                  \
     "          id=\"%V_H264\"\n"                                               \
     "          mimeType=\"video/mp4\"\n"                                       \
@@ -46,12 +44,12 @@
     "        <SegmentTemplate\n"                                               \
     "            presentationTimeOffset=\"0\"\n"                               \
     "            timescale=\"1000\"\n"                                         \
-    "            media=\"%V%s$Time$.m4a\"\n"                                   \
-    "            initialization=\"%V%sinit.m4a\">\n"                           \
-    "           <SegmentTimeline>\n"
+    "            media=\"%V%s$Time$.m4v\"\n"                                   \
+    "            initialization=\"%V%sinit.m4v\">\n"                           \
+    "          <SegmentTimeline>\n"
 
 
-#define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO_FOOTER                     \
+#define NGX_RTMP_DASH_MANIFEST_VIDEO_FOOTER                                    \
     "          </SegmentTimeline>\n"                                           \
     "        </SegmentTemplate>\n"                                             \
     "      </Representation>\n"                                                \
