@@ -451,11 +451,13 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
         par_x = codec_ctx->width / gcd;
         par_y = codec_ctx->height / gcd;
 
-        p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_VIDEO,
+        p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO,
                          codec_ctx->width,
                          codec_ctx->height,
                          frame_rate,
-                         par_x, par_y,
+                         par_x, par_y);
+
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
                          &ctx->name,
                          codec_ctx->avc_profile,
                          codec_ctx->avc_compat,

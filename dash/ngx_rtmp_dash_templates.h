@@ -23,7 +23,7 @@
     "  <Period start=\"PT0S\" id=\"dash\">\n"
 
 
-#define NGX_RTMP_DASH_MANIFEST_VIDEO                                           \
+#define NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO                             \
     "    <AdaptationSet\n"                                                     \
     "        id=\"1\"\n"                                                       \
     "        startWithSAP=\"1\"\n"                                             \
@@ -31,7 +31,10 @@
     "        maxWidth=\"%ui\"\n"                                               \
     "        maxHeight=\"%ui\"\n"                                              \
     "        maxFrameRate=\"%s\"\n"                                            \
-    "        par=\"%ui:%ui\">\n"                                               \
+    "        par=\"%ui:%ui\">\n"
+
+
+#define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO                            \
     "      <Representation\n"                                                  \
     "          id=\"%V_H264\"\n"                                               \
     "          mimeType=\"video/mp4\"\n"                                       \
