@@ -483,7 +483,9 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     }
 
     if (ctx->has_audio) {
-        p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_AUDIO,
+        p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO);
+
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,
                          &ctx->name,
                          codec_ctx->audio_codec_id == NGX_RTMP_AUDIO_AAC ?
                          (codec_ctx->aac_sbr ? "40.5" : "40.2") : "6b",
@@ -498,7 +500,9 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                              f->timestamp, f->duration);
         }
 
-        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_AUDIO_FOOTER);
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO_FOOTER);
+
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO_FOOTER);
 
         n = ngx_write_fd(fd, buffer, p - buffer);
     }

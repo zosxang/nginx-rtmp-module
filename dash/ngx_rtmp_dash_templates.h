@@ -66,7 +66,7 @@
     "             <S t=\"%uD\" d=\"%uD\"/>\n"
 
 
-#define NGX_RTMP_DASH_MANIFEST_AUDIO                                           \
+#define NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO                             \
     "    <AdaptationSet\n"                                                     \
     "        id=\"2\"\n"                                                       \
     "        startWithSAP=\"1\"\n"                                             \
@@ -74,7 +74,10 @@
     "      <AudioChannelConfiguration\n"                                       \
     "          schemeIdUri=\"urn:mpeg:dash:"                                   \
                                 "23003:3:audio_channel_configuration:2011\"\n" \
-    "          value=\"1\"/>\n"                                                \
+    "          value=\"1\"/>\n"
+
+
+#define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO                            \
     "      <Representation\n"                                                  \
     "          id=\"%V_AAC\"\n"                                                \
     "          mimeType=\"audio/mp4\"\n"                                       \
@@ -89,10 +92,13 @@
     "          <SegmentTimeline>\n"
 
 
-#define NGX_RTMP_DASH_MANIFEST_AUDIO_FOOTER                                    \
+#define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO_FOOTER                     \
     "          </SegmentTimeline>\n"                                           \
     "        </SegmentTemplate>\n"                                             \
-    "      </Representation>\n"                                                \
+    "      </Representation>\n"
+
+
+#define NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO_FOOTER                      \
     "    </AdaptationSet>\n"
 
 
