@@ -52,10 +52,13 @@
     "          <SegmentTimeline>\n"
 
 
-#define NGX_RTMP_DASH_MANIFEST_VIDEO_FOOTER                                    \
+#define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO_FOOTER                     \
     "          </SegmentTimeline>\n"                                           \
     "        </SegmentTemplate>\n"                                             \
-    "      </Representation>\n"                                                \
+    "      </Representation>\n"
+
+
+#define NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO_FOOTER                      \
     "    </AdaptationSet>\n"
 
 

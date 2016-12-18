@@ -475,7 +475,9 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                              f->timestamp, f->duration);
         }
 
-        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VIDEO_FOOTER);
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO_FOOTER);
+
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO_FOOTER);
 
         n = ngx_write_fd(fd, buffer, p - buffer);
     }
