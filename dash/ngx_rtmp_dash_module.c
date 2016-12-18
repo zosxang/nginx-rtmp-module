@@ -284,6 +284,202 @@ ngx_rtmp_dash_gcd(ngx_uint_t m, ngx_uint_t n)
 
 
 static ngx_int_t
+ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
+{
+    //char                      *sep;
+    u_char                    *p, *last;
+    ssize_t                    n;
+    ngx_fd_t                   fd;
+    struct tm                  tm;
+    //ngx_str_t                  noname, *name;
+    //ngx_uint_t                 i, frame_rate_num, frame_rate_denom;
+    ngx_uint_t                 i;
+    ngx_uint_t                 depth_msec, depth_sec;
+    ngx_uint_t                 update_period, update_period_msec;
+    ngx_uint_t                 buffer_time, buffer_time_msec;
+    ngx_uint_t                 presentation_delay, presentation_delay_msec;
+    //ngx_uint_t                 gcd, par_x, par_y;
+    ngx_rtmp_dash_ctx_t       *ctx;
+    ngx_rtmp_codec_ctx_t      *codec_ctx;
+    ngx_rtmp_dash_frag_t      *f;
+    ngx_rtmp_dash_app_conf_t  *dacf;
+
+    ngx_rtmp_playlist_t        v;
+
+    static u_char              buffer[NGX_RTMP_DASH_BUFSIZE];
+    static u_char              avaliable_time[NGX_RTMP_DASH_GMT_LENGTH];
+    static u_char              publish_time[NGX_RTMP_DASH_GMT_LENGTH];
+    static u_char              buffer_depth[sizeof("P00Y00M00DT00H00M00.000S")];
+    //static u_char              frame_rate[(NGX_INT_T_LEN * 2) + 2];
+
+    dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
+    ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
+    codec_ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_codec_module);
+
+    if (dacf == NULL || ctx == NULL || codec_ctx == NULL) {
+        return NGX_ERROR;
+    }
+
+    fd = ngx_open_file(ctx->var_playlist_bak.data, NGX_FILE_WRONLY,
+                       NGX_FILE_TRUNCATE, NGX_FILE_DEFAULT_ACCESS);
+
+    if (fd == NGX_INVALID_FILE) {
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+                      "dash: open failed: '%V'", &ctx->var_playlist_bak);
+        return NGX_ERROR;
+    }
+
+    ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno, "dash: variant %s", ctx->var_playlist_bak.data);
+
+    /**
+     * Availability time must be equal stream start time
+     * Cos segments time counting from it
+     */
+    ngx_libc_gmtime(ctx->start_time.sec, &tm);
+    *ngx_sprintf(avaliable_time, "%4d-%02d-%02dT%02d:%02d:%02dZ",
+             tm.tm_year + 1900, tm.tm_mon + 1,
+             tm.tm_mday, tm.tm_hour,
+             tm.tm_min, tm.tm_sec
+             ) = 0;
+
+    /* Stream publish time */
+    *ngx_sprintf(publish_time, "%s", avaliable_time) = 0;
+
+    depth_sec = (ngx_uint_t) (
+                 ngx_rtmp_dash_get_frag(s, ctx->nfrags - 1)->timestamp +
+                 ngx_rtmp_dash_get_frag(s, ctx->nfrags - 1)->duration - 
+                 ngx_rtmp_dash_get_frag(s, 0)->timestamp);
+
+    depth_msec = depth_sec % 1000;
+    depth_sec -= depth_msec;
+    depth_sec /= 1000;
+
+    ngx_libc_gmtime(depth_sec, &tm);
+
+    *ngx_sprintf(buffer_depth, "P%dY%02dM%02dDT%dH%02dM%02d.%03dS",
+                 tm.tm_year - 70, tm.tm_mon,
+                 tm.tm_mday - 1, tm.tm_hour,
+                 tm.tm_min, tm.tm_sec,
+                 depth_msec) = 0;
+
+    last = buffer + sizeof(buffer);
+
+    /**
+     * Calculate playlist minimal update period
+     * This should be more than biggest segment duration
+     * Cos segments rounded by keyframe/GOP.
+     * And that time not always equals to fragment length.
+     */
+    update_period = dacf->fraglen;
+
+    for (i = 0; i < ctx->nfrags; i++) {
+        f = ngx_rtmp_dash_get_frag(s, i);
+        if (f->duration > update_period) {
+            update_period = f->duration;
+        }
+    }
+
+    // Reasonable delay for streaming
+    presentation_delay = update_period * 2 + 1000;
+    presentation_delay_msec = presentation_delay % 1000;
+    presentation_delay -= presentation_delay_msec;
+    presentation_delay /= 1000;
+
+    // Calculate msec part and seconds
+    update_period_msec = update_period % 1000;
+    update_period -= update_period_msec;
+    update_period /= 1000;
+
+    // Buffer length by default fragment length
+    buffer_time = dacf->fraglen;
+    buffer_time_msec = buffer_time % 1000;
+    buffer_time -= buffer_time_msec;
+    buffer_time /= 1000;
+
+    // Fill DASH header
+    p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_HEADER,
+                     // availabilityStartTime
+                     avaliable_time,
+                     // publishTime
+                     publish_time,
+                     // minimumUpdatePeriod
+                     update_period, update_period_msec,
+                     // minBufferTime
+                     buffer_time, buffer_time_msec,
+                     // timeShiftBufferDepth
+                     buffer_depth,
+                     // suggestedPresentationDelay
+                     presentation_delay, presentation_delay_msec
+                     );
+
+    p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_PERIOD);
+
+    n = ngx_write_fd(fd, buffer, p - buffer);
+
+    //ngx_str_null(&noname);
+
+    //name = (dacf->nested ? &noname : &ctx->name);
+    //sep = (dacf->nested ? "" : "-");
+
+    //
+    p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_PERIOD_FOOTER);
+    n = ngx_write_fd(fd, buffer, p - buffer);
+
+    /* UTCTiming value */
+    switch (dacf->clock_compensation) {
+        case NGX_RTMP_DASH_CLOCK_COMPENSATION_NTP:
+                p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_CLOCK,
+                                 "ntp",
+                                 &dacf->clock_helper_uri
+                );
+                n = ngx_write_fd(fd, buffer, p - buffer);
+        break;
+        case NGX_RTMP_DASH_CLOCK_COMPENSATION_HTTP_HEAD:
+                p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_CLOCK,
+                                 "http-head",
+                                 &dacf->clock_helper_uri
+                );
+                n = ngx_write_fd(fd, buffer, p - buffer);
+        break;
+        case NGX_RTMP_DASH_CLOCK_COMPENSATION_HTTP_ISO:
+                p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_CLOCK,
+                                 "http-iso",
+                                 &dacf->clock_helper_uri
+                );
+                n = ngx_write_fd(fd, buffer, p - buffer);
+        break;
+    }
+
+    p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_FOOTER);
+    n = ngx_write_fd(fd, buffer, p - buffer);
+
+    if (n < 0) {
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+                      "dash: write failed: '%V'", &ctx->var_playlist_bak);
+        ngx_close_file(fd);
+        return NGX_ERROR;
+    }
+
+    ngx_close_file(fd);
+
+    if (ngx_rtmp_dash_rename_file(ctx->var_playlist_bak.data, ctx->var_playlist.data)
+        == NGX_FILE_ERROR)
+    {
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+                      "dash: rename failed: '%V'->'%V'",
+                      &ctx->var_playlist_bak, &ctx->var_playlist);
+        return NGX_ERROR;
+    }
+
+    ngx_memzero(&v, sizeof(v));
+    ngx_str_set(&(v.module), "dash");
+    v.playlist.data = ctx->playlist.data;
+    v.playlist.len = ctx->playlist.len;
+    return next_playlist(s, &v);
+}
+
+
+static ngx_int_t
 ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
 {
     char                      *sep;
@@ -554,6 +750,10 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                       "dash: rename failed: '%V'->'%V'",
                       &ctx->playlist_bak, &ctx->playlist);
         return NGX_ERROR;
+    }
+
+    if (ctx->var) {
+        return ngx_rtmp_dash_write_variant_playlist(s);
     }
 
     ngx_memzero(&v, sizeof(v));
