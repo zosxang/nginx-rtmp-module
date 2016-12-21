@@ -52,6 +52,31 @@
     "          <SegmentTimeline>\n"
 
 
+#define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VARIANT_VIDEO                    \
+    "      <Representation\n"                                                  \
+    "          id=\"%V%V_H264\"\n"                                             \
+    "          mimeType=\"video/mp4\"\n"                                       \
+    "          codecs=\"avc1.%02uxi%02uxi%02uxi\"\n"                           \
+    "          sar=\"1:1\"\n"                                                  \
+
+
+#define NGX_RTMP_DASH_MANIFEST_VARIANT_ARG                                     \
+    "          %V\n"
+
+
+#define NGX_RTMP_DASH_MANIFEST_VARIANT_ARG_FOOTER                              \
+    "          >\n"
+
+
+#define NGX_RTMP_DASH_MANIFEST_SEGMENTTPL_VARIANT_VIDEO                        \
+    "        <SegmentTemplate\n"                                               \
+    "            presentationTimeOffset=\"0\"\n"                               \
+    "            timescale=\"1000\"\n"                                         \
+    "            media=\"%V%V%s$Time$.m4v\"\n"                                 \
+    "            initialization=\"%V%V%sinit.m4v\">\n"                         \
+    "          <SegmentTimeline>\n"
+
+
 #define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO_FOOTER                     \
     "          </SegmentTimeline>\n"                                           \
     "        </SegmentTemplate>\n"                                             \

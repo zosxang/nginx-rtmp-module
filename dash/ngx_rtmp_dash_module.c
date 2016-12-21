@@ -287,13 +287,13 @@ ngx_rtmp_dash_gcd(ngx_uint_t m, ngx_uint_t n)
 static ngx_int_t
 ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
 {
-    //char                      *sep;
+    char                      *sep;
     u_char                    *p, *last;
     ssize_t                    n;
     ngx_fd_t                   fd;
     struct tm                  tm;
     //ngx_str_t                  noname, *name;
-    ngx_uint_t                 i, j, frame_rate_num, frame_rate_denom;
+    ngx_uint_t                 i, j, k, frame_rate_num, frame_rate_denom;
     ngx_uint_t                 depth_msec, depth_sec;
     ngx_uint_t                 update_period, update_period_msec;
     ngx_uint_t                 buffer_time, buffer_time_msec;
@@ -304,6 +304,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     ngx_rtmp_dash_frag_t      *f;
     ngx_rtmp_dash_app_conf_t  *dacf;
     ngx_rtmp_dash_variant_t   *var;
+    ngx_str_t                 *arg;
 
     ngx_rtmp_playlist_t        v;
 
@@ -418,7 +419,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     //ngx_str_null(&noname);
 
     //name = (dacf->nested ? &noname : &ctx->name);
-    //sep = (dacf->nested ? "" : "-");
+    sep = (dacf->nested ? "" : "-");
     var = dacf->variant->elts;
 
     if (ctx->has_video) {
@@ -446,7 +447,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
             *ngx_sprintf(frame_rate, "%ui/%ui", frame_rate_num, frame_rate_denom) = 0;
         }
 
-        // perhaps max width ?
+        // perhaps max width/height ?
         gcd = ngx_rtmp_dash_gcd(codec_ctx->width, codec_ctx->height);
         par_x = codec_ctx->width / gcd;
         par_y = codec_ctx->height / gcd;
@@ -459,8 +460,24 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
 
         for (j = 0; j < dacf->variant->nelts; j++, var++)
         {
-
             ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "dash: variant %s %s", var->suffix.data, ctx->varname.data);
+
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VARIANT_VIDEO,
+                             &ctx->varname, &var->suffix,
+                             codec_ctx->avc_profile,
+                             codec_ctx->avc_compat,
+                             codec_ctx->avc_level);
+
+            arg = var->args.elts;
+            for (k = 0; k < var->args.nelts; k++, arg++) {
+                p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG, arg);
+            }
+
+	    p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG_FOOTER);
+
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_SEGMENTTPL_VARIANT_VIDEO,
+                             &ctx->varname, &var->suffix, sep,
+                             &ctx->varname, &var->suffix, sep);
 
             for (i = 0; i < ctx->nfrags; i++) {
                 f = ngx_rtmp_dash_get_frag(s, i);
