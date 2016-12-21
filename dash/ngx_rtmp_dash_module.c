@@ -292,7 +292,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     ssize_t                    n;
     ngx_fd_t                   fd;
     struct tm                  tm;
-    //ngx_str_t                  noname, *name;
+    ngx_str_t                  noname, *name;
     ngx_uint_t                 i, j, k, frame_rate_num, frame_rate_denom;
     ngx_uint_t                 depth_msec, depth_sec;
     ngx_uint_t                 update_period, update_period_msec;
@@ -416,9 +416,9 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
 
     n = ngx_write_fd(fd, buffer, p - buffer);
 
-    //ngx_str_null(&noname);
+    ngx_str_null(&noname);
 
-    //name = (dacf->nested ? &noname : &ctx->name);
+    name = (dacf->nested ? &noname : &ctx->name);
     sep = (dacf->nested ? "" : "-");
     var = dacf->variant->elts;
 
@@ -447,7 +447,6 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
             *ngx_sprintf(frame_rate, "%ui/%ui", frame_rate_num, frame_rate_denom) = 0;
         }
 
-        // perhaps max width/height ?
         gcd = ngx_rtmp_dash_gcd(codec_ctx->width, codec_ctx->height);
         par_x = codec_ctx->width / gcd;
         par_y = codec_ctx->height / gcd;
@@ -460,8 +459,6 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
 
         for (j = 0; j < dacf->variant->nelts; j++, var++)
         {
-            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "dash: variant %s %s", var->suffix.data, ctx->varname.data);
-
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VARIANT_VIDEO,
                              &ctx->varname, &var->suffix,
                              codec_ctx->avc_profile,
@@ -493,8 +490,31 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
         n = ngx_write_fd(fd, buffer, p - buffer);
     }
 
-    //audio here
-    //
+    if (ctx->has_audio) {
+        p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO);
+
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,
+                         &ctx->name,
+                         codec_ctx->audio_codec_id == NGX_RTMP_AUDIO_AAC ?
+                         (codec_ctx->aac_sbr ? "40.5" : "40.2") : "6b",
+                         codec_ctx->sample_rate,
+                         (ngx_uint_t) (codec_ctx->audio_data_rate * 1000),
+                         name, sep,
+                         name, sep);
+
+        for (i = 0; i < ctx->nfrags; i++) {
+            f = ngx_rtmp_dash_get_frag(s, i);
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_TIME,
+                             f->timestamp, f->duration);
+        }
+
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO_FOOTER);
+
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO_FOOTER);
+
+        n = ngx_write_fd(fd, buffer, p - buffer);
+    }
+
     p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_PERIOD_FOOTER);
     n = ngx_write_fd(fd, buffer, p - buffer);
 
