@@ -2,6 +2,51 @@
 
 ## nginx-rtmp-module
 
+ forked from https://github.com/sergey-dryabzhinsky/ which was the most up to date version.
+ re-add the possibility to have variant in dash like in this configuration 
+
+     rtmp {
+        server {
+            listen 1935;
+
+            application ingest {
+                live on;
+                exec /usr/bin/ffmpeg -i rtmp://localhost/$app/$name
+                    -c:a libfdk_aac -b:a 64k -c:v libx264 -preset fast -profile:v baseline -vsync cfr -s 1024x576 -b:v 1024K -bufsize 1024k
+                    -f flv rtmp://localhost/dash/$name_hi
+                    -c:a libfdk_aac -b:a 64k -c:v libx264 -preset fast -profile:v baseline -vsync cfr -s 640x360 -b:v 832K -bufsize 832k
+                    -f flv rtmp://localhost/dash/$name_med
+                    -c:a libfdk_aac -b:a 64k -c:v libx264 -preset fast -profile:v baseline -vsync cfr -s 320x180 -b:v 256K -bufsize 256k
+                    -f flv rtmp://localhost/dash/$name_low
+            }
+
+            application dash {
+                live on;
+                dash on;
+                dash_nested off; # should be broken at this stage
+                dash_path /dev/shm/dash;
+                dash_fragment 3;
+                dash_playlist_length 120;
+                dash_cleanup on;
+                dash_variant _low bandwidth="256000" width="320" height="180";
+                dash_variant _med bandwidth="832000" width="640" height="360";
+                dash_variant _hi bandwidth="1024000" width="1024" height="576";
+            }
+        }
+    }
+    http {
+        server {
+            listen 80;
+
+            location /dash {
+                alias /dev/shm/dash;
+                add_header Cache-Control no-cache;
+                add_header 'Access-Control-Allow-Origin' '*';
+            }
+        }
+    }
+
+
 ### Project blog
 
   http://nginx-rtmp.blogspot.com
