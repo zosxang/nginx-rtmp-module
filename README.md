@@ -23,7 +23,7 @@
             application dash {
                 live on;
                 dash on;
-                dash_nested off; # should be broken at this stage
+                dash_nested on; # this work but not separate the variant mpd ; but that ok for now
                 dash_path /dev/shm/dash;
                 dash_fragment 3;
                 dash_playlist_length 120;
