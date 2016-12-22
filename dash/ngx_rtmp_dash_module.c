@@ -292,7 +292,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     ssize_t                    n;
     ngx_fd_t                   fd;
     struct tm                  tm;
-    ngx_str_t                  noname, *name;
+    //ngx_str_t                  noname, *name;
     ngx_uint_t                 i, j, k, frame_rate_num, frame_rate_denom;
     ngx_uint_t                 depth_msec, depth_sec;
     ngx_uint_t                 update_period, update_period_msec;
@@ -416,10 +416,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
 
     n = ngx_write_fd(fd, buffer, p - buffer);
 
-    ngx_str_null(&noname);
-
-    name = (dacf->nested ? &noname : &ctx->name);
-    sep = (dacf->nested ? "" : "-");
+    sep = (dacf->nested ? "/" : "-");
     var = dacf->variant->elts;
 
     if (ctx->has_video) {
@@ -499,8 +496,8 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                          (codec_ctx->aac_sbr ? "40.5" : "40.2") : "6b",
                          codec_ctx->sample_rate,
                          (ngx_uint_t) (codec_ctx->audio_data_rate * 1000),
-                         name, sep,
-                         name, sep);
+                         &ctx->name, sep,
+                         &ctx->name, sep);
 
         for (i = 0; i < ctx->nfrags; i++) {
             f = ngx_rtmp_dash_get_frag(s, i);
