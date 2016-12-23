@@ -292,7 +292,6 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     ssize_t                    n;
     ngx_fd_t                   fd;
     struct tm                  tm;
-    //ngx_str_t                  noname, *name;
     ngx_uint_t                 i, j, k, frame_rate_num, frame_rate_denom;
     ngx_uint_t                 depth_msec, depth_sec;
     ngx_uint_t                 update_period, update_period_msec;
