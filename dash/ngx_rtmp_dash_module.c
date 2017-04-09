@@ -1963,6 +1963,79 @@ ngx_rtmp_dash_playlist(ngx_rtmp_session_t *s, ngx_rtmp_playlist_t *v)
     return next_playlist(s, v);
 }
 
+static ngx_int_t
+ngx_rtmp_dash_on_cue_point(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
+                           ngx_chain_t *in)
+{
+    ngx_int_t                       res;
+
+    static struct {
+        double                  time;
+        double                  duration;
+        u_char                  name[128];
+        u_char                  type[128];
+        u_char                  ptype[128];
+    } v;
+
+    static ngx_rtmp_amf_elt_t   in_pr_elts[] = {
+
+        { NGX_RTMP_AMF_STRING,
+          ngx_string("type"),
+          v.ptype, sizeof(v.ptype) },
+
+        { NGX_RTMP_AMF_NUMBER,
+          ngx_string("duration"),
+          &v.duration, sizeof(v.duration) },
+
+    };
+
+    static ngx_rtmp_amf_elt_t   in_dt_elts[] = {
+
+        { NGX_RTMP_AMF_NUMBER,
+          ngx_string("time"),
+          &v.time, sizeof(v.time) },
+
+        { NGX_RTMP_AMF_STRING,
+          ngx_string("name"),
+          v.name, sizeof(v.name) },
+
+        { NGX_RTMP_AMF_STRING,
+          ngx_string("type"),
+          v.type, sizeof(v.type) },
+
+        { NGX_RTMP_AMF_OBJECT,
+          ngx_string("parameters"),
+          in_pr_elts, sizeof(in_pr_elts) },
+
+    };
+    
+    static ngx_rtmp_amf_elt_t   in_elts[] = {
+
+        { NGX_RTMP_AMF_OBJECT,
+          ngx_null_string,
+          in_dt_elts, sizeof(in_dt_elts) },
+
+    };
+
+    ngx_log_error(NGX_LOG_INFO, s->connection->log, 0, "dash: on cuepoint");
+
+    ngx_memzero(&v, sizeof(v));
+    res = ngx_rtmp_receive_amf(s, in, in_elts,
+        sizeof(in_elts) / sizeof(in_elts[0]));
+
+    if (res == NGX_OK) {
+        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+            "dash : onCuepoint : time='%f', name='%s' type='%s' ptype='%s' duration='%f'",
+            v.time, v.name, v.type, v.ptype, v.duration);
+    } else {
+        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+            "dash : onCuepoint : amf not understood");
+    }
+
+    return NGX_OK;
+}
+
+
 static void *
 ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf)
 {
@@ -2046,6 +2119,7 @@ ngx_rtmp_dash_postconfiguration(ngx_conf_t *cf)
 {
     ngx_rtmp_handler_pt        *h;
     ngx_rtmp_core_main_conf_t  *cmcf;
+    ngx_rtmp_amf_handler_t     *ch;
 
     cmcf = ngx_rtmp_conf_get_module_main_conf(cf, ngx_rtmp_core_module);
 
@@ -2069,6 +2143,10 @@ ngx_rtmp_dash_postconfiguration(ngx_conf_t *cf)
 
     next_playlist = ngx_rtmp_playlist;
     ngx_rtmp_playlist = ngx_rtmp_dash_playlist;
+
+    ch = ngx_array_push(&cmcf->amf);
+    ngx_str_set(&ch->name, "onCuePoint");
+    ch->handler = ngx_rtmp_dash_on_cue_point;
 
     return NGX_OK;
 }
