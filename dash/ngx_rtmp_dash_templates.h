@@ -22,6 +22,11 @@
 #define NGX_RTMP_DASH_MANIFEST_PERIOD                                          \
     "  <Period start=\"PT0S\" id=\"dash\">\n"
 
+#define NGX_RTMP_DASH_INBAND_EVENT                                             \
+    "    <InbandEventStream\n"                                                 \
+    "        schemeIdUri=\"urn:scte:scte35:2013:xml\"\n"                       \
+    "        ts=\"%ui\"\n"                                                     \
+    "        value=\"%ui\" />\n"
 
 #define NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO                             \
     "    <AdaptationSet\n"                                                     \

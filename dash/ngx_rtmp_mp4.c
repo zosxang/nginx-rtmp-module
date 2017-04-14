@@ -1165,3 +1165,48 @@ ngx_rtmp_mp4_write_mdat(ngx_buf_t *b, ngx_uint_t size)
 
     return NGX_OK;
 }
+
+ngx_int_t
+ngx_rtmp_mp4_write_emsg(ngx_buf_t *b,
+    uint32_t pres_time, uint32_t cuepoint_time, uint32_t duration_time)
+{
+    u_char    *pos;
+    uint32_t   delta_time;
+    uint32_t   duration;
+    uint32_t   timescale = 1;
+
+    delta_time = (cuepoint_time - pres_time) * timescale; 
+    duration = duration_time * timescale;
+
+    pos = ngx_rtmp_mp4_start_box(b, "emsg");
+
+    /* version & flag */
+    ngx_rtmp_mp4_field_32(b, 0);
+
+    /* scheme_id_uri */
+    ngx_rtmp_mp4_data(b, "urn:mpeg:dash:event:2012", sizeof("urn:mpeg:dash:event:2012"));
+
+    /* value */
+    ngx_rtmp_mp4_data(b, "1", sizeof("1"));
+
+    /* timescale */
+    ngx_rtmp_mp4_field_32(b, timescale);
+
+    /* presentation_time_delta */
+    ngx_rtmp_mp4_field_32(b, delta_time);
+
+    /* duration */
+    ngx_rtmp_mp4_field_32(b, duration);
+
+    /* id */
+    ngx_rtmp_mp4_field_32(b, 1);
+
+    /* data */
+    ngx_rtmp_mp4_data(b, "<null/>", sizeof("<null/>"));
+
+    ngx_rtmp_mp4_update_box_size(b, pos);
+
+    return NGX_OK;
+
+}
+
