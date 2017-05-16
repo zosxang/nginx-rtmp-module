@@ -80,6 +80,7 @@ typedef struct {
 
     uint32_t                            cuepoint_timestamp;
     uint32_t                            cuepoint_duration;
+    uint32_t                            cuepoint_prgid;
 
     ngx_file_t                          video_file;
     ngx_file_t                          audio_file;
@@ -458,6 +459,8 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                          frame_rate,
                          par_x, par_y);
 
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
+
         for (j = 0; j < dacf->variant->nelts; j++, var++)
         {
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VARIANT_VIDEO,
@@ -747,13 +750,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                          frame_rate,
                          par_x, par_y);
 
-        /*
-        if (ctx->has_cuepoint) {
-            p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_INBAND_EVENT,
-                         ctx->cuepoint_timestamp,
-                         ctx->cuepoint_duration);
-        }
-        */
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
         
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
                          &ctx->name,
@@ -972,7 +969,8 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
     if (ctx->has_cuepoint) {
         ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time,
                                 ctx->cuepoint_timestamp, 
-                                ctx->cuepoint_duration);
+                                ctx->cuepoint_duration,
+                                ctx->cuepoint_prgid);
 
         pos = b.last;
         b.last = pos;
@@ -1994,7 +1992,6 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
 
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
 
-
     static struct {
         double                  time;
         double                  duration;
@@ -2043,8 +2040,6 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
 
     };
 
-    ngx_log_error(NGX_LOG_INFO, s->connection->log, 0, "dash: on cuepoint");
-
     ngx_memzero(&v, sizeof(v));
     res = ngx_rtmp_receive_amf(s, in, in_elts,
         sizeof(in_elts) / sizeof(in_elts[0]));
@@ -2062,7 +2057,123 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     ctx->cuepoint_timestamp = h->timestamp;
     ctx->cuepoint_duration = v.duration;
 
-    //ngx_rtmp_dash_update_fragments_oncuepoint(s, h->timestamp);
+    return NGX_OK;
+}
+
+static ngx_int_t
+ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
+                           ngx_chain_t *in)
+{
+    ngx_int_t                  res;
+    ngx_rtmp_dash_ctx_t       *ctx;
+
+    ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
+
+    static struct {
+        unsigned                ooni;
+        unsigned                splice_event_ci;
+        unsigned                splice_imd;
+        double                  avail_num;
+        double                  avail_expected;
+        double                  duration;
+        double                  prtime;
+        double                  prgid;
+        double                  sctype;
+        double                  sevtid;
+        u_char                  type[128];
+        u_char                  mtype[128];
+    }  v;
+
+    static ngx_rtmp_amf_elt_t   in_pr_elts[] = {
+
+        { NGX_RTMP_AMF_STRING,
+          ngx_string("messageType"),
+          v.mtype, sizeof(v.mtype) },
+
+        { NGX_RTMP_AMF_NUMBER,
+          ngx_string("splice_command_type"),
+          &v.sctype, sizeof(v.sctype) },
+
+        { NGX_RTMP_AMF_NUMBER,
+          ngx_string("splice_event_id"),
+          &v.sevtid, sizeof(v.sevtid) },
+
+        { NGX_RTMP_AMF_BOOLEAN,
+          ngx_string("splice_event_cancel_indicator"),
+          &v.splice_event_ci, sizeof(v.splice_event_ci) },
+
+        { NGX_RTMP_AMF_BOOLEAN,
+          ngx_string("out_of_network_indicator"),
+          &v.ooni, sizeof(v.ooni) },
+
+        { NGX_RTMP_AMF_BOOLEAN,
+          ngx_string("splice_immediate"),
+          &v.splice_imd, sizeof(v.splice_imd) },
+
+        { NGX_RTMP_AMF_NUMBER,
+          ngx_string("pre_roll_time"),
+          &v.prtime, sizeof(v.prtime) },
+
+        { NGX_RTMP_AMF_NUMBER,
+          ngx_string("break_duration"),
+          &v.duration, sizeof(v.duration) },
+
+        { NGX_RTMP_AMF_NUMBER,
+          ngx_string("unique_program_id"),
+          &v.prgid, sizeof(v.prgid) },
+
+        { NGX_RTMP_AMF_NUMBER,
+          ngx_string("avail_num"),
+          &v.avail_num, sizeof(v.avail_num) },
+
+        { NGX_RTMP_AMF_NUMBER,
+          ngx_string("avail_expected"),
+          &v.avail_expected, sizeof(v.avail_expected) },
+
+    };
+
+    static ngx_rtmp_amf_elt_t   in_dt_elts[] = {
+
+        { NGX_RTMP_AMF_STRING,
+          ngx_string("type"),
+          v.type, sizeof(v.type) },
+
+        { NGX_RTMP_AMF_OBJECT,
+          ngx_string("parameters"),
+          in_pr_elts, sizeof(in_pr_elts) },
+
+    };
+    
+    static ngx_rtmp_amf_elt_t   in_elts[] = {
+
+        { NGX_RTMP_AMF_OBJECT,
+          ngx_null_string,
+          in_dt_elts, sizeof(in_dt_elts) },
+
+    };
+
+    ngx_memzero(&v, sizeof(v));
+    res = ngx_rtmp_receive_amf(s, in, in_elts,
+        sizeof(in_elts) / sizeof(in_elts[0]));
+
+    if (res == NGX_OK && v.duration > 0) {
+        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+            "dash : onCuepoint_scte35 : ts='%ui', type='%s', mtype='%s', sctype='%f', "\
+            "scid='%f', prgid='%f', duration='%f', avail_num='%f', avail_expected='%f'",
+            h->timestamp, v.type, v.mtype, v.sctype, 
+            v.sevtid, v.prgid, v.duration, v.avail_num, v.avail_expected);
+    } else {
+        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+            "dash : onCuepoint_scte35 : amf not understood");
+    }
+
+    if (v.duration > 0) {
+        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0, "dash : onCuepoint_scte35 : fired" );
+        ctx->has_cuepoint = 1;
+        ctx->cuepoint_timestamp = h->timestamp;
+        ctx->cuepoint_duration = v.duration;
+        ctx->cuepoint_prgid = v.prgid;
+    }
 
     return NGX_OK;
 }
@@ -2177,8 +2288,12 @@ ngx_rtmp_dash_postconfiguration(ngx_conf_t *cf)
     ngx_rtmp_playlist = ngx_rtmp_dash_playlist;
 
     ch = ngx_array_push(&cmcf->amf);
-    ngx_str_set(&ch->name, "onCuePoint");
+    ngx_str_set(&ch->name, "onCuePoint_noop");
     ch->handler = ngx_rtmp_dash_on_cuepoint;
+
+    ch = ngx_array_push(&cmcf->amf);
+    ngx_str_set(&ch->name, "onCuePoint");
+    ch->handler = ngx_rtmp_dash_on_cuepoint_scte35;
 
     return NGX_OK;
 }
