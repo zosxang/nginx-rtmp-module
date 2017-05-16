@@ -2,16 +2,16 @@
 
 ## nginx-rtmp-module
 
- Forked from https://github.com/sergey-dryabzhinsky/ which was the most up to date version.
-  
+Forked from https://github.com/sergey-dryabzhinsky/ which was the most up to date version.
+
  - add the possibility to have dash variant like in HLS (show below configuration, using ffmpeg to trancode in 3 variants) 
  - add the support of inband scte event, from rtmp AMF event to dash (InbandEvent in manifest and emsg box in mp4 fragment)
 
 
-     rtmp {
-        server {
+    rtmp {
+            server {
             listen 1935;
-
+     
             application ingest {
                 live on;
                 exec /usr/bin/ffmpeg -i rtmp://localhost/$app/$name
@@ -22,7 +22,7 @@
                     -c:a libfdk_aac -b:a 64k -c:v libx264 -preset fast -profile:v baseline -vsync cfr -s 320x180 -b:v 256K -bufsize 256k
                     -f flv rtmp://localhost/dash/$name_low
             }
-
+      
             application dash {
                 live on;
                 dash on;
@@ -40,7 +40,7 @@
     http {
         server {
             listen 80;
-
+    
             location /dash {
                 alias /dev/shm/dash;
                 add_header Cache-Control no-cache;
