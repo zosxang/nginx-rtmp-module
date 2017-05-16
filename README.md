@@ -2,8 +2,11 @@
 
 ## nginx-rtmp-module
 
- forked from https://github.com/sergey-dryabzhinsky/ which was the most up to date version.
- re-add the possibility to have variant in dash like in this configuration 
+ Forked from https://github.com/sergey-dryabzhinsky/ which was the most up to date version.
+  
+ - add the possibility to have dash variant like in HLS (show below configuration, using ffmpeg to trancode in 3 variants) 
+ - add the support of inband scte event, from rtmp AMF event to dash (InbandEvent in manifest and emsg box in mp4 fragment)
+
 
      rtmp {
         server {
