@@ -967,6 +967,11 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
     b.pos = b.last = b.start;
 
     if (ctx->has_cuepoint) {
+
+        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+            "dash : onCuepoint write emsg : epts='%ui', cpts='%ui', duration='%ui'",
+            t->earliest_pres_time, ctx->cuepoint_timestamp, ctx->cuepoint_duration);
+
         ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time,
                                 ctx->cuepoint_timestamp, 
                                 ctx->cuepoint_duration,
@@ -2049,7 +2054,7 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
             "dash : onCuepoint : ts='%ui', time='%f', name='%s' type='%s' ptype='%s' duration='%f'",
             h->timestamp, v.time, v.name, v.type, v.ptype, v.duration);
     } else {
-        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+        ngx_log_debug0(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
             "dash : onCuepoint : amf not understood");
     }
 
@@ -2163,12 +2168,11 @@ ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
             h->timestamp, v.type, v.mtype, v.sctype, 
             v.sevtid, v.prgid, v.duration, v.avail_num, v.avail_expected);
     } else {
-        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+        ngx_log_debug0(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
             "dash : onCuepoint_scte35 : amf not understood");
     }
 
     if (v.duration > 0) {
-        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0, "dash : onCuepoint_scte35 : fired" );
         ctx->has_cuepoint = 1;
         ctx->cuepoint_timestamp = h->timestamp;
         ctx->cuepoint_duration = v.duration;
