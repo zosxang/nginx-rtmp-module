@@ -969,10 +969,10 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
     if (ctx->has_cuepoint) {
 
         ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
-            "dash : onCuepoint write emsg : epts='%ui', cpts='%ui', duration='%ui'",
-            t->earliest_pres_time, ctx->cuepoint_timestamp, ctx->cuepoint_duration);
+            "dash : onCuepoint write emsg : epts='%ui', lpts='%ui', cpts='%ui', duration='%ui'",
+            t->earliest_pres_time, t->latest_pres_time, ctx->cuepoint_timestamp, ctx->cuepoint_duration);
 
-        ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time,
+	ngx_rtmp_mp4_write_emsg(&b, 0, /* should be presentation time but dashjs is buggy */
                                 ctx->cuepoint_timestamp, 
                                 ctx->cuepoint_duration,
                                 ctx->cuepoint_prgid);

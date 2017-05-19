@@ -1168,7 +1168,7 @@ ngx_rtmp_mp4_write_mdat(ngx_buf_t *b, ngx_uint_t size)
 
 ngx_int_t
 ngx_rtmp_mp4_write_emsg(ngx_buf_t *b,
-    uint32_t pres_time, uint32_t cuepoint_time, uint32_t duration_time, uint32_t prg_id)
+    uint32_t pres_time, uint32_t cuepoint_time, uint32_t duration_time, uint32_t id)
 {
     u_char    *pos;
     uint32_t   delta_time;
@@ -1197,14 +1197,14 @@ ngx_rtmp_mp4_write_emsg(ngx_buf_t *b,
     ngx_rtmp_mp4_field_32(b, duration_time);
 
     /* id */
-    ngx_rtmp_mp4_field_32(b, prg_id);
+    ngx_rtmp_mp4_field_32(b, id);
 
 #define SCTE_EVENT "<SpliceInfoSection ptsAdjustment=\"0\" scte35:tier=\"4095\">\
  <SpliceInsert spliceEventId=\"1\" spliceEventCancelIndicator=\"false\" outOfNetworkIndicator=\"false\"\
   uniqueProgramId=\"1\" availNum=\"0\" availsExpected=\"0\" spliceImmediateFlag=\"true\" >\
  <Program><SpliceTime ptsTime=\"\"/></Program>\
  <BreakDuration autoReturn=\"false\" duration=\"\"/>\
-</SpliceInsert></SpliceInfoSection></SpliceInfoSection>"    
+</SpliceInsert></SpliceInfoSection>"    
 
     /* data */
     ngx_rtmp_mp4_data(b, SCTE_EVENT, sizeof(SCTE_EVENT));
