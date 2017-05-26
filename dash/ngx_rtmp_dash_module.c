@@ -78,9 +78,9 @@ typedef struct {
     unsigned                            has_audio:1;
     unsigned                            has_cuepoint:1;
 
-    uint32_t                            cuepoint_timestamp;
+    uint32_t                            cuepoint_time;
     uint32_t                            cuepoint_duration;
-    uint32_t                            cuepoint_prgid;
+    uint32_t                            cuepoint_id;
 
     ngx_file_t                          video_file;
     ngx_file_t                          audio_file;
@@ -970,12 +970,13 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
 
         ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
             "dash : onCuepoint write emsg : epts='%ui', lpts='%ui', cpts='%ui', duration='%ui'",
-            t->earliest_pres_time, t->latest_pres_time, ctx->cuepoint_timestamp, ctx->cuepoint_duration);
+            t->earliest_pres_time, t->latest_pres_time, ctx->cuepoint_time, ctx->cuepoint_duration);
 
-	ngx_rtmp_mp4_write_emsg(&b, 0, /* should be presentation time but dashjs is buggy */
-                                ctx->cuepoint_timestamp, 
+	/* ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time, */
+	ngx_rtmp_mp4_write_emsg(&b, 0, /* should be earliest presentation time but dashjs is buggy */
+                                ctx->cuepoint_time, 
                                 ctx->cuepoint_duration,
-                                ctx->cuepoint_prgid);
+                                ctx->cuepoint_id);
 
         pos = b.last;
         b.last = pos;
@@ -2059,7 +2060,7 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     }
 
     ctx->has_cuepoint = 1;
-    ctx->cuepoint_timestamp = h->timestamp;
+    ctx->cuepoint_time = h->timestamp;
     ctx->cuepoint_duration = v.duration;
 
     return NGX_OK;
@@ -2174,9 +2175,9 @@ ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
 
     if (v.duration > 0) {
         ctx->has_cuepoint = 1;
-        ctx->cuepoint_timestamp = h->timestamp;
+        ctx->cuepoint_time = h->timestamp;
         ctx->cuepoint_duration = v.duration;
-        ctx->cuepoint_prgid = v.prgid;
+        ctx->cuepoint_id = v.prgid;
     }
 
     return NGX_OK;

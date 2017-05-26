@@ -1168,13 +1168,13 @@ ngx_rtmp_mp4_write_mdat(ngx_buf_t *b, ngx_uint_t size)
 
 ngx_int_t
 ngx_rtmp_mp4_write_emsg(ngx_buf_t *b,
-    uint32_t pres_time, uint32_t cuepoint_time, uint32_t duration_time, uint32_t id)
+    uint32_t earliest_pres_time, uint32_t cuepoint_time, uint32_t duration_time, uint32_t id)
 {
     u_char    *pos;
     uint32_t   delta_time;
     uint32_t   timescale = 1000;
 
-    delta_time = (cuepoint_time - pres_time); 
+    delta_time = cuepoint_time - earliest_pres_time; 
 
     pos = ngx_rtmp_mp4_start_box(b, "emsg");
 
