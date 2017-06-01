@@ -461,8 +461,8 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
 
-        for (j = 0; j < dacf->variant->nelts; j++, var++)
-        {
+        for (j = 0; j < dacf->variant->nelts; j++, var++) {
+
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VARIANT_VIDEO,
                              &ctx->varname, &var->suffix,
                              codec_ctx->avc_profile,
@@ -851,7 +851,8 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
         return NGX_ERROR;
     }
 
-    if (ctx->var) {
+    /* try to write the variant file only once, check the max flag */
+    if (ctx->var->args.nelts > 3) {
         return ngx_rtmp_dash_write_variant_playlist(s);
     }
 
