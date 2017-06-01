@@ -1,0 +1,3 @@
+- rewritte the variant code for dash, use separate file, and concat them in the manifest
+- add an option for inbant event handling, allow the choice of using onCuePoint/onCuePoint_scte35
+- add support for common encryption, early stage in aes_ctr.c
