@@ -1998,6 +1998,9 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     ngx_rtmp_dash_ctx_t       *ctx;
 
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
+    if (ctx == NULL ) {
+        return NGX_OK;
+    }
 
     static struct {
         double                  time;
@@ -2075,6 +2078,9 @@ ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     ngx_rtmp_dash_ctx_t       *ctx;
 
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
+    if (ctx == NULL ) {
+        return NGX_OK;
+    }
 
     static struct {
         unsigned                ooni;
