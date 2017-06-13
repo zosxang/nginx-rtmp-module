@@ -113,6 +113,17 @@ static ngx_conf_enum_t                  ngx_rtmp_dash_clock_compensation_type_sl
     { ngx_null_string,                  0 }
 };
 
+#define NGX_RTMP_DASH_AD_MARKERS_OFF                1
+#define NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT        2
+#define NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT_SCTE35 3
+
+static ngx_conf_enum_t                   ngx_rtmp_dash_ad_markers_type_slots[] = {
+    { ngx_string("off"),                 NGX_RTMP_DASH_AD_MARKERS_OFF },
+    { ngx_string("on_cuepoint"),         NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT },
+    { ngx_string("on_cuepoint_scte35"),  NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT_SCTE35 },
+    { ngx_null_string,                   0 }
+};
+
 typedef struct {
     ngx_flag_t                          dash;
     ngx_msec_t                          fraglen;
@@ -128,6 +139,7 @@ typedef struct {
     ngx_flag_t                          cleanup;
     ngx_path_t                         *slot;
     ngx_array_t                        *variant;
+    ngx_uint_t                          ad_markers;
 } ngx_rtmp_dash_app_conf_t;
 
 
@@ -195,6 +207,13 @@ static ngx_command_t ngx_rtmp_dash_commands[] = {
       NGX_RTMP_APP_CONF_OFFSET,
       0,
       NULL },
+
+    { ngx_string("dash_ad_markers"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_enum_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_dash_app_conf_t, ad_markers),
+      &ngx_rtmp_dash_ad_markers_type_slots },
 
     ngx_null_command
 };
@@ -459,7 +478,11 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                          frame_rate,
                          par_x, par_y);
 
-        p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
+        switch (dacf->ad_markers) {
+            case NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT:
+            case NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT_SCTE35:
+                p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
+        }
 
         for (j = 0; j < dacf->variant->nelts; j++, var++) {
 
@@ -750,7 +773,11 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                          frame_rate,
                          par_x, par_y);
 
-        p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
+        switch (dacf->ad_markers) {
+            case NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT:
+            case NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT_SCTE35:
+                p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
+        }
         
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
                          &ctx->name,
@@ -852,7 +879,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     }
 
     /* try to write the variant file only once, check the max flag */
-    if (ctx->var->args.nelts > 3) {
+    if (ctx->var && ctx->var->args.nelts > 3) {
         return ngx_rtmp_dash_write_variant_playlist(s);
     }
 
@@ -1913,6 +1940,7 @@ ngx_rtmp_dash_cleanup_dir(ngx_str_t *ppath, ngx_msec_t playlen)
     }
 }
 
+
 #if (nginx_version >= 1011005)
 static ngx_msec_t
 #else
@@ -1932,6 +1960,7 @@ ngx_rtmp_dash_cleanup(void *data)
     return cleanup->playlen / 500;
 #endif
 }
+
 
 static char *
 ngx_rtmp_dash_variant(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
@@ -1984,11 +2013,13 @@ ngx_rtmp_dash_variant(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_OK;
 }
 
+
 static ngx_int_t
 ngx_rtmp_dash_playlist(ngx_rtmp_session_t *s, ngx_rtmp_playlist_t *v)
 {
     return next_playlist(s, v);
 }
+
 
 static ngx_int_t
 ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
@@ -1998,9 +2029,6 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     ngx_rtmp_dash_ctx_t       *ctx;
 
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
-    if (ctx == NULL ) {
-        return NGX_OK;
-    }
 
     static struct {
         double                  time;
@@ -2070,6 +2098,7 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     return NGX_OK;
 }
 
+
 static ngx_int_t
 ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
                            ngx_chain_t *in)
@@ -2078,9 +2107,6 @@ ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     ngx_rtmp_dash_ctx_t       *ctx;
 
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
-    if (ctx == NULL ) {
-        return NGX_OK;
-    }
 
     static struct {
         unsigned                ooni;
@@ -2191,6 +2217,32 @@ ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
 }
 
 
+static ngx_int_t
+ngx_rtmp_dash_ad_markers(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
+                           ngx_chain_t *in)
+{
+    ngx_rtmp_dash_app_conf_t  *dacf;
+
+    dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
+    if (dacf == NULL || !dacf->dash || dacf->path.len == 0) {
+        return NGX_OK;
+    }
+
+    switch (dacf->ad_markers) {
+        case NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT:
+            return ngx_rtmp_dash_on_cuepoint(s, h, in);
+        break;
+        case NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT_SCTE35:
+            return ngx_rtmp_dash_on_cuepoint_scte35(s, h, in);
+        break;
+        default:
+            return NGX_OK;
+    }
+
+    return NGX_OK;
+}
+
+
 static void *
 ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf)
 {
@@ -2207,6 +2259,7 @@ ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf)
     conf->cleanup = NGX_CONF_UNSET;
     conf->nested = NGX_CONF_UNSET;
     conf->clock_compensation = NGX_CONF_UNSET;
+    conf->ad_markers = NGX_CONF_UNSET;
 
     return conf;
 }
@@ -2227,6 +2280,8 @@ ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_uint_value(conf->clock_compensation, prev->clock_compensation,
                               NGX_RTMP_DASH_CLOCK_COMPENSATION_OFF);
     ngx_conf_merge_str_value(conf->clock_helper_uri, prev->clock_helper_uri, "");
+    ngx_conf_merge_uint_value(conf->ad_markers, prev->ad_markers,
+                              NGX_RTMP_DASH_AD_MARKERS_OFF);
 
     if (conf->fraglen) {
         conf->winfrags = conf->playlen / conf->fraglen;
@@ -2300,12 +2355,8 @@ ngx_rtmp_dash_postconfiguration(ngx_conf_t *cf)
     ngx_rtmp_playlist = ngx_rtmp_dash_playlist;
 
     ch = ngx_array_push(&cmcf->amf);
-    ngx_str_set(&ch->name, "onCuePoint_noop");
-    ch->handler = ngx_rtmp_dash_on_cuepoint;
-
-    ch = ngx_array_push(&cmcf->amf);
     ngx_str_set(&ch->name, "onCuePoint");
-    ch->handler = ngx_rtmp_dash_on_cuepoint_scte35;
+    ch->handler = ngx_rtmp_dash_ad_markers;
 
     return NGX_OK;
 }
