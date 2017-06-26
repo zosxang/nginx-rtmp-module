@@ -398,10 +398,13 @@ ngx_rtmp_recv(ngx_event_t *rev)
                 if (b->last - p < 4)
                     continue;
                 pp = (u_char*)&timestamp;
+               /* extented time stamp:
+                *  big-endian 4b -> little-endian 4b */
                 pp[3] = *p++;
                 pp[2] = *p++;
                 pp[1] = *p++;
                 pp[0] = *p++;
+                ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP extended timestamp %uD", timestamp);
             }
 
             if (st->len == 0) {
@@ -412,10 +415,17 @@ ngx_rtmp_recv(ngx_event_t *rev)
                  * in real life */
                 st->ext = (ext && cscf->publish_time_fix);
                 if (fmt) {
+                    ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP timestamp delta on fmt type %d", (int)fmt);
                     st->dtime = timestamp;
                 } else {
-                    h->timestamp = timestamp;
-                    st->dtime = 0;
+                    /* fix elemental live server sending wrong ts */
+                    if ((int)h->type == 18) {
+                        ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP FIX fmt type %d type 18 and zero lenght", (int)fmt);
+		    } else {
+                        ngx_log_debug0(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP absolute timestamp on fmt type 0");
+                        h->timestamp = timestamp;
+                        st->dtime = 0;
+                    }
                 }
             }
 
@@ -430,7 +440,7 @@ ngx_rtmp_recv(ngx_event_t *rev)
 
             if (h->mlen > cscf->max_message) {
                 ngx_log_error(NGX_LOG_INFO, c->log, 0,
-                        "too big message: %uz", cscf->max_message);
+                        "too big message: %uz > %uz ", h->mlen, cscf->max_message);
                 ngx_rtmp_finalize_session(s);
                 return;
             }
@@ -774,8 +784,8 @@ ngx_rtmp_receive_message(ngx_rtmp_session_t *s,
                 ch = ch->next, ++nbufs);
 
         ngx_log_debug7(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
-                "RTMP recv %s (%d) csid=%D timestamp=%D "
-                "mlen=%D msid=%D nbufs=%d",
+                "RTMP recv %s (%d) csid=%D timestamp=%uD "
+                "mlen=%uD msid=%D nbufs=%d",
                 ngx_rtmp_message_type(h->type), (int)h->type,
                 h->csid, h->timestamp, h->mlen, h->msid, nbufs);
     }
