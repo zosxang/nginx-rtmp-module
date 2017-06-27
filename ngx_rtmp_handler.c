@@ -404,27 +404,32 @@ ngx_rtmp_recv(ngx_event_t *rev)
                 pp[2] = *p++;
                 pp[1] = *p++;
                 pp[0] = *p++;
-                ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP extended timestamp %uD", timestamp);
+                ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP extended timestamp %uD", (uint32_t)timestamp);
             }
 
-            if (st->len == 0) {
-                /* Messages with type=3 should
-                 * never have ext timestamp field
-                 * according to standard.
-                 * However that's not always the case
-                 * in real life */
-                st->ext = (ext && cscf->publish_time_fix);
+            if (fmt <= 2) {
+                /* The specification states that ext timestamp
+                 * is present in Type 3 chunks when the most recent Type 0,
+                 * 1, or 2 chunk for the same chunk stream ID have the presence of
+                 * an extended timestamp field. */
+                st->ext = ext;
                 if (fmt) {
                     ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP timestamp delta on fmt type %d", (int)fmt);
-                    st->dtime = timestamp;
+                    /* another elemental fix relative ts to epoch 
+                       TODO : make this configurable */ 
+                    if (timestamp >= s->peer_epoch) {
+                        st->dtime = timestamp - s->peer_epoch;
+                    } else {
+                        st->dtime = timestamp;
+                    }
                 } else {
-                    /* fix elemental live server sending wrong ts */
+                    /* fix elemental live server sending garbage ts */
                     if ((int)h->type == 18) {
                         ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP FIX fmt type %d type 18 and zero lenght", (int)fmt);
 		    } else {
-                        ngx_log_debug0(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP absolute timestamp on fmt type 0");
                         h->timestamp = timestamp;
                         st->dtime = 0;
+                        ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP absolute timestamp on fmt type 0 : %uD", h->timestamp);
                     }
                 }
             }
