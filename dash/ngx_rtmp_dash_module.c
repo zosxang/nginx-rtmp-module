@@ -317,7 +317,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     char                      *sep;
     u_char                    *p, *last;
     ssize_t                    n;
-    ngx_fd_t                   fd;
+    ngx_fd_t                   fd, fds;
     struct tm                  tm;
     ngx_uint_t                 i, j, k, frame_rate_num, frame_rate_denom;
     ngx_uint_t                 depth_msec, depth_sec;
@@ -339,6 +339,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     static u_char              publish_time[NGX_RTMP_DASH_GMT_LENGTH];
     static u_char              buffer_depth[sizeof("P00Y00M00DT00H00M00.000S")];
     static u_char              frame_rate[(NGX_INT_T_LEN * 2) + 2];
+    static u_char              seg_path[NGX_MAX_PATH + 1];
 
     dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
@@ -486,9 +487,11 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                 p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
         }
 
+        n = ngx_write_fd(fd, buffer, p - buffer);
+
         for (j = 0; j < dacf->variant->nelts; j++, var++) {
 
-            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VARIANT_VIDEO,
+            p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VARIANT_VIDEO,
                              &ctx->varname, &var->suffix,
                              codec_ctx->avc_profile,
                              codec_ctx->avc_compat,
@@ -499,23 +502,46 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                 p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG, arg);
             }
 
-	    p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG_FOOTER);
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG_FOOTER);
 
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_SEGMENTTPL_VARIANT_VIDEO,
                              &ctx->varname, &var->suffix, sep,
                              &ctx->varname, &var->suffix, sep);
 
-            for (i = 0; i < ctx->nfrags; i++) {
-                f = ngx_rtmp_dash_get_frag(s, i);
-                p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_TIME,
-                                 f->timestamp, f->duration);
+            n = ngx_write_fd(fd, buffer, p - buffer);
+
+            /* read segments file */
+            if (dacf->nested) {
+                *ngx_sprintf(seg_path, "%V/%V%V/index.seg",
+                             &dacf->path, &ctx->varname, &var->suffix) = 0;
+            } else {
+                *ngx_sprintf(seg_path, "%V/%V%V.seg",
+                             &dacf->path, &ctx->varname, &var->suffix) = 0;
             }
 
-            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO_FOOTER);
+            ngx_log_debug1(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+                          "dash: read segments file for variant '%s'", seg_path);
+
+            fds = ngx_open_file(seg_path, NGX_FILE_RDONLY, NGX_FILE_OPEN, 0);
+
+            if (fds == NGX_INVALID_FILE) {
+                ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+                              "dash: open failed: segments '%s'", seg_path);
+                continue;
+            } 
+
+            while ((n = ngx_read_fd(fds, buffer, sizeof(buffer)))) {
+                n = ngx_write_fd(fd, buffer, n);
+            }
+
+            ngx_close_file(fds);
+
+            p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO_FOOTER);
+            n = ngx_write_fd(fd, buffer, p - buffer);
+
         }
 
-        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO_FOOTER);
-
+        p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO_FOOTER);
         n = ngx_write_fd(fd, buffer, p - buffer);
     }
 
@@ -790,10 +816,8 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
             case NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT_SCTE35:
                 p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
         }
-
-        n = ngx_write_fd(fd, buffer, p - buffer);
         
-        p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
                          &ctx->name,
                          codec_ctx->avc_profile,
                          codec_ctx->avc_compat,
@@ -805,15 +829,18 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                          name, sep,
                          name, sep);
 
+        n = ngx_write_fd(fd, buffer, p - buffer);
+
+        p = buffer;
         for (i = 0; i < ctx->nfrags; i++) {
             f = ngx_rtmp_dash_get_frag(s, i);
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_TIME,
                              f->timestamp, f->duration);
         }
 
-        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO_FOOTER);
-
         ngx_write_fd(fds, buffer, p - buffer);
+
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO_FOOTER);
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO_FOOTER);
 
@@ -1026,8 +1053,8 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
             "dash : onCuepoint write emsg : epts='%ui', lpts='%ui', cpts='%ui', duration='%ui'",
             t->earliest_pres_time, t->latest_pres_time, ctx->cuepoint_time, ctx->cuepoint_duration);
 
-	/* ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time, */
-	ngx_rtmp_mp4_write_emsg(&b, 0, /* should be earliest presentation time but dashjs is buggy */
+        /* ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time, */
+        ngx_rtmp_mp4_write_emsg(&b, 0, /* should be earliest presentation time but dashjs is buggy */
                                 ctx->cuepoint_time, 
                                 ctx->cuepoint_duration,
                                 ctx->cuepoint_id);
