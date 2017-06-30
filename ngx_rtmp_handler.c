@@ -416,9 +416,11 @@ ngx_rtmp_recv(ngx_event_t *rev)
                 if (fmt) {
                     ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP timestamp delta on fmt type %d", (int)fmt);
                     /* another elemental fix relative ts to epoch 
-                       TODO : make this configurable */ 
+                     * TODO : make this configurable */ 
                     if (timestamp >= s->peer_epoch) {
                         st->dtime = timestamp - s->peer_epoch;
+                    } else if ((timestamp + 2000) >= s->peer_epoch) {
+                        st->dtime = 0;
                     } else {
                         st->dtime = timestamp;
                     }

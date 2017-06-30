@@ -60,6 +60,8 @@ typedef struct {
 
 
 typedef struct {
+    ngx_str_t                           segments;
+    ngx_str_t                           segments_bak;
     ngx_str_t                           playlist;
     ngx_str_t                           playlist_bak;
     ngx_str_t                           var_playlist;
@@ -605,7 +607,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     char                      *sep;
     u_char                    *p, *last;
     ssize_t                    n;
-    ngx_fd_t                   fd;
+    ngx_fd_t                   fd, fds;
     struct tm                  tm;
     ngx_str_t                  noname, *name;
     ngx_uint_t                 i, frame_rate_num, frame_rate_denom;
@@ -645,6 +647,16 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     if (fd == NGX_INVALID_FILE) {
         ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
                       "dash: open failed: '%V'", &ctx->playlist_bak);
+        return NGX_ERROR;
+    }
+   
+    /* write segments file */
+    fds = ngx_open_file(ctx->segments_bak.data, NGX_FILE_WRONLY,
+                        NGX_FILE_TRUNCATE, NGX_FILE_DEFAULT_ACCESS);
+
+    if (fds == NGX_INVALID_FILE) {
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+                      "dash: open failed: '%V'", &ctx->segments_bak);
         return NGX_ERROR;
     }
 
@@ -778,8 +790,10 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
             case NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT_SCTE35:
                 p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
         }
+
+        n = ngx_write_fd(fd, buffer, p - buffer);
         
-        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
+        p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
                          &ctx->name,
                          codec_ctx->avc_profile,
                          codec_ctx->avc_compat,
@@ -798,6 +812,8 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
         }
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO_FOOTER);
+
+        ngx_write_fd(fds, buffer, p - buffer);
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO_FOOTER);
 
@@ -868,6 +884,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     }
 
     ngx_close_file(fd);
+    ngx_close_file(fds);
 
     if (ngx_rtmp_dash_rename_file(ctx->playlist_bak.data, ctx->playlist.data)
         == NGX_FILE_ERROR)
@@ -875,6 +892,15 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
         ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
                       "dash: rename failed: '%V'->'%V'",
                       &ctx->playlist_bak, &ctx->playlist);
+        return NGX_ERROR;
+    }
+
+    if (ngx_rtmp_dash_rename_file(ctx->segments_bak.data, ctx->segments.data)
+        == NGX_FILE_ERROR)
+    {
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+                      "dash: rename failed: '%V'->'%V'",
+                      &ctx->segments_bak, &ctx->segments);
         return NGX_ERROR;
     }
 
@@ -1455,9 +1481,33 @@ ngx_rtmp_dash_publish(ngx_rtmp_session_t *s, ngx_rtmp_publish_t *v)
 
     *p = 0;
 
-    ngx_log_debug3(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
-                   "dash: playlist='%V' playlist_bak='%V' stream_pattern='%V'",
-                   &ctx->playlist, &ctx->playlist_bak, &ctx->stream);
+    /* segments path */
+
+    ctx->segments.data = ngx_palloc(s->connection->pool,
+                                        ctx->playlist.len - 4 + sizeof(".seg"));
+    p = ngx_cpymem(ctx->segments.data, ctx->playlist.data,
+                   ctx->playlist.len - 4);
+    p = ngx_cpymem(p, ".seg", sizeof(".seg") - 1);
+
+    ctx->segments.len = p - ctx->segments.data;
+
+    *p = 0;
+
+    /* segments bak (new segments) path */
+
+    ctx->segments_bak.data = ngx_palloc(s->connection->pool,
+                                        ctx->playlist.len - 4 + sizeof(".sbk"));
+    p = ngx_cpymem(ctx->segments_bak.data, ctx->playlist.data,
+                   ctx->playlist.len - 4);
+    p = ngx_cpymem(p, ".sbk", sizeof(".sbk") - 1);
+
+    ctx->segments_bak.len = p - ctx->segments_bak.data;
+
+    *p = 0;
+
+    ngx_log_debug5(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+                   "dash: playlist='%V' playlist_bak='%V' segments='%V' segments_bak='%V' stream_pattern='%V'",
+                   &ctx->playlist, &ctx->playlist_bak, &ctx->segments, &ctx->segments_bak, &ctx->stream);
 
     ctx->start_time = *ngx_cached_time;
 
