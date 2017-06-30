@@ -419,7 +419,7 @@ ngx_rtmp_recv(ngx_event_t *rev)
                      * TODO : make this configurable */ 
                     if (timestamp >= s->peer_epoch) {
                         st->dtime = timestamp - s->peer_epoch;
-                    } else if ((timestamp + 2000) >= s->peer_epoch) {
+                    } else if ((timestamp + 10000) >= s->peer_epoch) {
                         st->dtime = 0;
                     } else {
                         st->dtime = timestamp;
@@ -428,7 +428,7 @@ ngx_rtmp_recv(ngx_event_t *rev)
                     /* fix elemental live server sending garbage ts */
                     if ((int)h->type == 18) {
                         ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP FIX fmt type %d type 18 and zero lenght", (int)fmt);
-		    } else {
+                    } else {
                         h->timestamp = timestamp;
                         st->dtime = 0;
                         ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP absolute timestamp on fmt type 0 : %uD", h->timestamp);

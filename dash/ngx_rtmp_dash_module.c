@@ -498,7 +498,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                              codec_ctx->avc_level);
 
             arg = var->args.elts;
-            for (k = 0; k < var->args.nelts && k < 2 ; k++, arg++) {
+            for (k = 0; k < var->args.nelts && k < 3 ; k++, arg++) {
                 p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG, arg);
             }
 
