@@ -581,9 +581,9 @@ ngx_rtmp_hls_write_playlist(ngx_rtmp_session_t *s)
     }
 
     if (hacf->allow_client_cache == NGX_RTMP_HLS_CACHE_ENABLED) {
-        p = ngx_slprintf(p, end, "#EXT-X-ALLOW-CACHE:1\n");
+        p = ngx_slprintf(p, end, "#EXT-X-ALLOW-CACHE:YES\n");
     } else if (hacf->allow_client_cache == NGX_RTMP_HLS_CACHE_DISABLED) {
-        p = ngx_slprintf(p, end, "#EXT-X-ALLOW-CACHE:0\n");
+        p = ngx_slprintf(p, end, "#EXT-X-ALLOW-CACHE:NO\n");
     }
 
     n = ngx_write_fd(fd, buffer, p - buffer);

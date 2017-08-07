@@ -19,6 +19,7 @@ static ngx_rtmp_disconnect_pt                   next_disconnect;
 static ngx_rtmp_publish_pt                      next_publish;
 static ngx_rtmp_play_pt                         next_play;
 static ngx_rtmp_close_stream_pt                 next_close_stream;
+static ngx_rtmp_record_started_pt               next_record_started;
 static ngx_rtmp_record_done_pt                  next_record_done;
 static ngx_rtmp_playlist_pt                     next_playlist;
 
@@ -56,6 +57,7 @@ enum {
     NGX_RTMP_NOTIFY_PLAY_DONE,
     NGX_RTMP_NOTIFY_PUBLISH_DONE,
     NGX_RTMP_NOTIFY_DONE,
+    NGX_RTMP_NOTIFY_RECORD_STARTED,
     NGX_RTMP_NOTIFY_RECORD_DONE,
     NGX_RTMP_NOTIFY_UPDATE,
     NGX_RTMP_NOTIFY_PLAYLIST,
@@ -149,6 +151,14 @@ static ngx_command_t  ngx_rtmp_notify_commands[] = {
 
     { ngx_string("on_done"),
       NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_rtmp_notify_on_app_event,
+      NGX_RTMP_APP_CONF_OFFSET,
+      0,
+      NULL },
+
+    { ngx_string("on_record_started"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_RTMP_REC_CONF|
+                         NGX_CONF_TAKE1,
       ngx_rtmp_notify_on_app_event,
       NGX_RTMP_APP_CONF_OFFSET,
       0,
@@ -820,6 +830,69 @@ ngx_rtmp_notify_update_create(ngx_rtmp_session_t *s, void *arg,
     *b->last++ = '&';
 
     return ngx_rtmp_notify_create_request(s, pool, NGX_RTMP_NOTIFY_UPDATE, pl);
+}
+
+
+static ngx_chain_t *
+ngx_rtmp_notify_record_started_create(ngx_rtmp_session_t *s, void *arg,
+                                   ngx_pool_t *pool)
+{
+    ngx_rtmp_record_started_t         *v = arg;
+
+    ngx_rtmp_notify_ctx_t          *ctx;
+    ngx_chain_t                    *pl;
+    ngx_buf_t                      *b;
+    size_t                          name_len, args_len;
+
+    ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_notify_module);
+
+    pl = ngx_alloc_chain_link(pool);
+    if (pl == NULL) {
+        return NULL;
+    }
+
+    name_len  = ngx_strlen(ctx->name);
+    args_len  = ngx_strlen(ctx->args);
+
+    b = ngx_create_temp_buf(pool,
+            sizeof("call=record_started") +
+            sizeof("&recorder=") + v->recorder.len +
+            sizeof("&name=") + name_len * 3 +
+            sizeof("&path=") + v->path.len * 3 +
+            1 + args_len + 1);
+
+    if (b == NULL) {
+        return NULL;
+    }
+
+    pl->buf = b;
+    pl->next = NULL;
+
+    if (args_len) {
+        b->last = (u_char *) ngx_cpymem(b->last, ctx->args, args_len);
+        *b->last++ = '&';
+    }
+
+    b->last = ngx_cpymem(b->last, (u_char*) "call=record_started",
+                         sizeof("call=record_started") - 1);
+
+    b->last = ngx_cpymem(b->last, (u_char *) "&recorder=",
+                         sizeof("&recorder=") - 1);
+    b->last = (u_char*) ngx_escape_uri(b->last, v->recorder.data,
+                                       v->recorder.len, NGX_ESCAPE_ARGS);
+
+    b->last = ngx_cpymem(b->last, (u_char*) "&name=", sizeof("&name=") - 1);
+    b->last = (u_char*) ngx_escape_uri(b->last, ctx->name, name_len,
+                                       NGX_ESCAPE_ARGS);
+
+    b->last = ngx_cpymem(b->last, (u_char*) "&path=", sizeof("&path=") - 1);
+    b->last = (u_char*) ngx_escape_uri(b->last, v->path.data, v->path.len,
+                                       NGX_ESCAPE_ARGS);
+
+    *b->last++ = '&';
+
+    return ngx_rtmp_notify_create_request(s, pool, NGX_RTMP_NOTIFY_RECORD_STARTED,
+                                          pl);
 }
 
 
@@ -1863,6 +1936,39 @@ next:
 
 
 static ngx_int_t
+ngx_rtmp_notify_record_started(ngx_rtmp_session_t *s, ngx_rtmp_record_started_t *v)
+{
+    ngx_rtmp_netcall_init_t         ci;
+    ngx_rtmp_notify_app_conf_t     *nacf;
+
+    if (s->auto_pushed) {
+        goto next;
+    }
+
+    nacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_notify_module);
+    if (nacf == NULL || nacf->url[NGX_RTMP_NOTIFY_RECORD_STARTED] == NULL) {
+        goto next;
+    }
+
+    ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+                  "notify: record_started recorder=%V path='%V' url='%V'",
+                  &v->recorder, &v->path,
+                  &nacf->url[NGX_RTMP_NOTIFY_RECORD_STARTED]->url);
+
+    ngx_memzero(&ci, sizeof(ci));
+
+    ci.url    = nacf->url[NGX_RTMP_NOTIFY_RECORD_STARTED];
+    ci.create = ngx_rtmp_notify_record_started_create;
+    ci.arg    = v;
+
+    ngx_rtmp_netcall_create(s, &ci);
+    
+next:
+    return next_record_started(s, v); 
+}
+
+
+static ngx_int_t
 ngx_rtmp_notify_record_done(ngx_rtmp_session_t *s, ngx_rtmp_record_done_t *v)
 {
     ngx_rtmp_netcall_init_t         ci;
@@ -2070,6 +2176,10 @@ ngx_rtmp_notify_on_app_event(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             n = NGX_RTMP_NOTIFY_PLAY_DONE;
             break;
 
+        case sizeof("on_record_started") - 1:
+            n = NGX_RTMP_NOTIFY_RECORD_STARTED;
+            break;
+
         case sizeof("on_record_done") - 1:
             n = NGX_RTMP_NOTIFY_RECORD_DONE;
             break;
@@ -2165,6 +2275,9 @@ ngx_rtmp_notify_postconfiguration(ngx_conf_t *cf)
 
     next_close_stream = ngx_rtmp_close_stream;
     ngx_rtmp_close_stream = ngx_rtmp_notify_close_stream;
+
+    next_record_started = ngx_rtmp_record_started;
+    ngx_rtmp_record_started = ngx_rtmp_notify_record_started;
 
     next_record_done = ngx_rtmp_record_done;
     ngx_rtmp_record_done = ngx_rtmp_notify_record_done;

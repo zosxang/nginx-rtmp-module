@@ -1138,11 +1138,7 @@ ngx_rtmp_live_data(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
         ss->current_time = cs->timestamp;
     }
 
-    if (data) {
-        ngx_rtmp_free_shared_chain(cscf, data);
-    }
-
-    if (rpkt && !data) {
+    if (rpkt) {
         ngx_rtmp_free_shared_chain(cscf, rpkt);
     }
 

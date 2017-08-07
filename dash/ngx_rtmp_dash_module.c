@@ -1961,7 +1961,7 @@ ngx_rtmp_dash_cleanup_dir(ngx_str_t *ppath, ngx_msec_t playlen)
                            "dash: cleanup '%V' allowed, mpd missing '%s'",
                            &name, mpd_path);
 
-            max_age = 0;
+            max_age = playlen / 500;
 
         } else if (name.len >= 4 && name.data[name.len - 4] == '.' &&
                                     name.data[name.len - 3] == 'm' &&

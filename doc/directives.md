@@ -35,6 +35,7 @@ Table of Contents
     * [exec_play](#exec_play)
     * [exec_play_done](#exec_play_done)
     * [exec_publish_done](#exec_publish_done)
+    * [exec_record_started](#exec_record_started)
     * [exec_record_done](#exec_record_done)
 * [Live](#live)
     * [live](#live)
@@ -76,6 +77,7 @@ Table of Contents
     * [on_done](#on_done)
     * [on_play_done](#on_play_done)
     * [on_publish_done](#on_publish_done)
+    * [on_record_started](#on_record_started)
     * [on_record_done](#on_record_done)
     * [on_update](#on_update)
     * [notify_update_timeout](#notify_update_timeout)
@@ -478,6 +480,18 @@ Context: rtmp, server, application
 Specifies external command with arguments to be executed on
 publish_done event. Return code is not analyzed. Substitution list
 is the same as for `exec_publish`.
+
+#### exec_record_started
+Syntax: `exec_record_started command arg*`  
+Context: rtmp, server, application, recorder
+
+Specifies external command with arguments to be executed when
+recording is started.
+* `recorder` - recorder name
+* `path` - recorded file path (`/tmp/rec/mystream-1389499351.flv`)
+* `filename` - path with directory omitted (`mystream-1389499351.flv`)
+* `basename` - file name with extension omitted (`mystream-1389499351`)
+* `dirname` - directory path (`/tmp/rec`)
 
 #### exec_record_done
 Syntax: `exec_record_done command arg*`  
@@ -1105,6 +1119,16 @@ Syntax: `on_publish_done url`
 Context: rtmp, server, application  
 
 Same behavior as `on_done` but only for publish end event.
+
+#### on_record_started
+syntax: `on_record_started url`  
+context: rtmp, server, application, recorder  
+  
+Set record_started callback. In addition to common HTTP callback
+variables it receives the following values
+* recorder - recorder name in config or empty string for inline recorder
+* path - recording file path
+
 
 #### on_record_done
 syntax: `on_record_done url`  

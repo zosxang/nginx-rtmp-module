@@ -13,6 +13,7 @@
 #include "ngx_rtmp_record_module.h"
 
 
+ngx_rtmp_record_started_pt          ngx_rtmp_record_started;
 ngx_rtmp_record_done_pt             ngx_rtmp_record_done;
 
 
@@ -856,6 +857,8 @@ ngx_rtmp_record_node_close(ngx_rtmp_session_t *s,
     v.recorder = rracf->id;
     ngx_rtmp_record_make_path(s, rctx, &v.path);
 
+    rctx->record_started = 0;
+
     rc = ngx_rtmp_record_done(s, &v);
 
     s->app_conf = app_conf;
@@ -903,6 +906,21 @@ ngx_rtmp_record_write_frame(ngx_rtmp_session_t *s,
     }
     if (h->type == NGX_RTMP_MSG_AUDIO) {
         rctx->audio = 1;
+    }
+
+    if (rctx->record_started == 0)
+    {
+        rctx->record_started = 1;
+
+        ngx_rtmp_record_started_t       v;
+        ngx_rtmp_record_app_conf_t     *racf;
+        racf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_record_module);
+
+        if (racf != NULL && racf->rec.nelts != 0) {
+            v.recorder = racf->id;
+            v.path = racf->path;
+            ngx_rtmp_record_started(s, &v);
+        }
     }
 
     timestamp = h->timestamp - rctx->epoch;
@@ -1202,6 +1220,12 @@ ngx_rtmp_record_node_avd(ngx_rtmp_session_t *s, ngx_rtmp_record_rec_ctx_t *rctx,
 
 
 static ngx_int_t
+ngx_rtmp_record_started_init(ngx_rtmp_session_t *s, ngx_rtmp_record_started_t *v)
+{
+    return NGX_OK;
+}
+
+static ngx_int_t
 ngx_rtmp_record_done_init(ngx_rtmp_session_t *s, ngx_rtmp_record_done_t *v)
 {
     return NGX_OK;
@@ -1300,6 +1324,8 @@ ngx_rtmp_record_postconfiguration(ngx_conf_t *cf)
 {
     ngx_rtmp_core_main_conf_t          *cmcf;
     ngx_rtmp_handler_pt                *h;
+
+    ngx_rtmp_record_started = ngx_rtmp_record_started_init;
 
     ngx_rtmp_record_done = ngx_rtmp_record_done_init;
 
