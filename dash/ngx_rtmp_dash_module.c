@@ -78,7 +78,8 @@ typedef struct {
     unsigned                            opened:1;
     unsigned                            has_video:1;
     unsigned                            has_audio:1;
-    unsigned                            has_cuepoint:1;
+    unsigned                            start_cuepoint:1;
+    unsigned                            end_cuepoint:1;
 
     uint32_t                            cuepoint_time;
     uint32_t                            cuepoint_duration;
@@ -1047,7 +1048,7 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
     b.end = buffer + sizeof(buffer);
     b.pos = b.last = b.start;
 
-    if (ctx->has_cuepoint) {
+    if (ctx->start_cuepoint) {
 
         ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
             "dash : onCuepoint write emsg : epts='%ui', lpts='%ui', cpts='%ui', duration='%ui'",
@@ -1057,13 +1058,17 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
         ngx_rtmp_mp4_write_emsg(&b, 0, /* should be earliest presentation time but dashjs is buggy */
                                 ctx->cuepoint_time, 
                                 ctx->cuepoint_duration,
-                                ctx->cuepoint_id);
+                                ctx->cuepoint_id,
+                                1); /* start marker is 1 */
 
         pos = b.last;
         b.last = pos;
-        ctx->has_cuepoint = 0;
+        ctx->start_cuepoint = 0;
+        ctx->end_cuepoint = 1;
     }
 
+    //TODO Handle end marker
+    //
     ngx_rtmp_mp4_write_styp(&b);
 
     pos = b.last;
@@ -2159,7 +2164,7 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     res = ngx_rtmp_receive_amf(s, in, in_elts,
         sizeof(in_elts) / sizeof(in_elts[0]));
 
-    if (res == NGX_OK) {
+    if (res == NGX_OK && v.duration > 0) {
         ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
             "dash : onCuepoint : ts='%ui', time='%f', name='%s' type='%s' ptype='%s' duration='%f'",
             h->timestamp, v.time, v.name, v.type, v.ptype, v.duration);
@@ -2168,9 +2173,12 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
             "dash : onCuepoint : amf not understood");
     }
 
-    ctx->has_cuepoint = 1;
-    ctx->cuepoint_time = h->timestamp;
-    ctx->cuepoint_duration = v.duration;
+    if (v.duration > 0) {
+        ctx->start_cuepoint = 1;
+        ctx->cuepoint_time = h->timestamp;
+        ctx->cuepoint_duration = v.duration;
+        ctx->cuepoint_id = 0;
+    }
 
     return NGX_OK;
 }
@@ -2284,7 +2292,7 @@ ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     }
 
     if (v.duration > 0) {
-        ctx->has_cuepoint = 1;
+        ctx->start_cuepoint = 1;
         ctx->cuepoint_time = h->timestamp;
         ctx->cuepoint_duration = v.duration;
         ctx->cuepoint_id = v.prgid;
