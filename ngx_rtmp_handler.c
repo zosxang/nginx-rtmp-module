@@ -407,6 +407,7 @@ ngx_rtmp_recv(ngx_event_t *rev)
                 ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP extended timestamp %uD", (uint32_t)timestamp);
             }
 
+            /* type 0,1,2 */
             if (fmt <= 2) {
                 /* The specification states that ext timestamp
                  * is present in Type 3 chunks when the most recent Type 0,
@@ -414,22 +415,21 @@ ngx_rtmp_recv(ngx_event_t *rev)
                  * an extended timestamp field. */
                 st->ext = ext;
                 if (fmt) {
-                    ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP timestamp delta on fmt type %d", (int)fmt);
-                    /* another elemental fix relative ts to epoch 
-                     * TODO : make this configurable */ 
-                    /*
-                    if (timestamp >= s->peer_epoch) {
-                        st->dtime = timestamp - s->peer_epoch;
-                    } else if ((timestamp + 10000) >= s->peer_epoch) {
-                        st->dtime = 0;
-                    } else {
+                    /* type 1,2 => timestamp delta */
+                    /* quick hack longer ts */
+                    if (timestamp < 20000 ) {
+                        ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP timestamp delta on fmt type %d", (int)fmt);
                         st->dtime = timestamp;
-                    }*/
-                    st->dtime = timestamp;
+                    } else {
+                        ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP spurious timestamp delta on fmt type %d, ignore it", (int)fmt);
+                        st->dtime = 0;
+                    }
                 } else {
+                    /* type */
                     /* fix elemental live server sending garbage ts ?! */
                     if ((int)h->type == 18) {
                         ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP FIX fmt type %d type 18 and zero lenght", (int)fmt);
+                        st->dtime = 0;
                     } else {
                         h->timestamp = timestamp;
                         st->dtime = 0;
