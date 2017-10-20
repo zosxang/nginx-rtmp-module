@@ -416,19 +416,13 @@ ngx_rtmp_recv(ngx_event_t *rev)
                 st->ext = ext;
                 if (fmt) {
                     /* type 1,2 => timestamp delta */
-                    /* quick hack longer ts */
-                    if (timestamp < 20000 ) {
-                        ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP timestamp delta on fmt type %d", (int)fmt);
-                        st->dtime = timestamp;
-                    } else {
-                        ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP spurious timestamp delta on fmt type %d, ignore it", (int)fmt);
-                        st->dtime = 0;
-                    }
+                    ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP timestamp delta on fmt type %d", (int)fmt);
+                    st->dtime = timestamp;
                 } else {
                     /* type */
                     /* fix elemental live server sending garbage ts ?! */
                     if ((int)h->type == 18) {
-                        ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP FIX fmt type %d type 18 and zero lenght", (int)fmt);
+                        ngx_log_debug1(NGX_LOG_DEBUG_RTMP, c->log, 0, "RTMP FIX fmt type %d type 18", (int)fmt);
                         st->dtime = 0;
                     } else {
                         h->timestamp = timestamp;
