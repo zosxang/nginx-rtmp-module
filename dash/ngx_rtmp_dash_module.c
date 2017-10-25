@@ -81,7 +81,8 @@ typedef struct {
     unsigned                            start_cuepoint:1;
     unsigned                            end_cuepoint:1;
 
-    uint32_t                            cuepoint_time;
+    uint32_t                            cuepoint_starttime;
+    uint32_t                            cuepoint_endtime;
     uint32_t                            cuepoint_duration;
     uint32_t                            cuepoint_id;
 
@@ -1067,24 +1068,44 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
     if (ctx->start_cuepoint) {
 
         ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
-            "dash : onCuepoint write emsg : epts='%uD', lpts='%uD', cpts='%uD', duration='%uD', prid='%uD'",
-            t->earliest_pres_time, t->latest_pres_time, ctx->cuepoint_time, ctx->cuepoint_duration, ctx->cuepoint_id);
+            "dash : onCuepoint write start emsg : epts='%uD', lpts='%uD', cpts='%uD', "\
+            "ecpts='%uD', duration='%uD', prid='%uD'",
+            t->earliest_pres_time, t->latest_pres_time, ctx->cuepoint_starttime, 
+            ctx->cuepoint_endtime, ctx->cuepoint_duration, ctx->cuepoint_id);
 
-        /* ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time, */
-        ngx_rtmp_mp4_write_emsg(&b, 0, /* should be earliest presentation time but dashjs is buggy */
-                                ctx->cuepoint_time, 
+        /* should be ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time, 
+           thanks to dashjs
+         */
+        ngx_rtmp_mp4_write_emsg(&b, 0, 
+                                ctx->cuepoint_starttime, 
                                 ctx->cuepoint_duration,
-                                ctx->cuepoint_id,
-                                1); /* start marker is 1 */
+                                ctx->cuepoint_id);
 
         pos = b.last;
         b.last = pos;
         ctx->start_cuepoint = 0;
         ctx->cuepoint_duration = 0;
         ctx->end_cuepoint = 1;
-    }
 
-    //TODO Handle end marker
+    } else if (ctx->end_cuepoint && ctx->cuepoint_endtime > t->earliest_pres_time 
+        && ctx->cuepoint_endtime < t->latest_pres_time) {
+
+        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+            "dash : onCuepoint write end emsg : epts='%uD', lpts='%uD', cpts='%uD', "\
+            "ecpts='%uD', duration='%uD', prid='%uD'",
+            t->earliest_pres_time, t->latest_pres_time, ctx->cuepoint_starttime, 
+            ctx->cuepoint_endtime, ctx->cuepoint_duration, ctx->cuepoint_id);
+
+        /* end marker have duration set to zero and prid set to zero */
+        ngx_rtmp_mp4_write_emsg(&b, 0, 
+                                ctx->cuepoint_endtime, 
+                                0,
+                                0);
+
+        pos = b.last;
+        b.last = pos;
+        ctx->end_cuepoint = 0;
+    }
 
     ngx_rtmp_mp4_write_styp(&b);
 
@@ -2186,7 +2207,8 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
             "dash : onCuepoint : ts='%ui', time='%f', name='%s' type='%s' ptype='%s' duration='%f'",
             h->timestamp, v.time, v.name, v.type, v.ptype, v.duration);
         ctx->start_cuepoint = 1;
-        ctx->cuepoint_time = h->timestamp;
+        ctx->cuepoint_starttime = h->timestamp;
+        ctx->cuepoint_endtime = h->timestamp+(v.duration*1000); 
         ctx->cuepoint_duration = v.duration;
         ctx->cuepoint_id = 0;
     } else {
@@ -2301,7 +2323,8 @@ ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
             h->timestamp, v.type, v.mtype, v.sctype, 
             v.sevtid, v.prgid, v.duration, v.avail_num, v.avail_expected);
         ctx->start_cuepoint = 1;
-        ctx->cuepoint_time = h->timestamp;
+        ctx->cuepoint_starttime = h->timestamp;
+        ctx->cuepoint_endtime = h->timestamp + v.duration; 
         ctx->cuepoint_duration = v.duration;
         ctx->cuepoint_id = v.prgid;
     } else {
@@ -2318,9 +2341,6 @@ ngx_rtmp_dash_on_cuepoint_cont_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *
                            ngx_chain_t *in)
 {
     ngx_int_t                  res;
-    ngx_rtmp_dash_ctx_t       *ctx;
-
-    ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
 
     static struct {
         double                  segupid;
@@ -2376,11 +2396,9 @@ ngx_rtmp_dash_on_cuepoint_cont_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *
 
     if (res == NGX_OK && v.segrduration > 0) {
         ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
-            "dash : onCuepoint__cont_scte35 : ts='%ui', type='%s', "\
+            "dash : onCuepoint_cont_scte35 : ts='%ui', type='%s', "\
             "segupid='%f', segduration='%f', segrduration='%f'",
             h->timestamp, v.mtype, v.segupid, v.segduration, v.segrduration);
-        if (v.segrduration < 10000) 
-            ctx->end_cuepoint = 0;
     } else {
         ngx_log_debug0(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
             "dash : onCuepoint_cont_scte35 : amf not understood");
