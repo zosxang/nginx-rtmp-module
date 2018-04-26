@@ -1158,7 +1158,10 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
         pos = b.last;
         b.last = pos;
         ctx->end_cuepoint = 0;
-    }
+    } else if (ctx->end_cuepoint && ctx->cuepoint_endtime < t->earliest_pres_time ) {
+        /* fallback */
+        ctx->end_cuepoint = 0;
+    }   
 
     ngx_rtmp_mp4_write_styp(&b);
 
