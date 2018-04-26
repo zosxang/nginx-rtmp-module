@@ -1140,8 +1140,8 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
         ctx->cuepoint_duration = 0;
         ctx->end_cuepoint = 1;
 
-    } else if (ctx->end_cuepoint && ctx->cuepoint_endtime > t->earliest_pres_time 
-        && ctx->cuepoint_endtime < t->latest_pres_time) {
+    } else if (ctx->end_cuepoint && ctx->cuepoint_endtime >= t->earliest_pres_time 
+        && ctx->cuepoint_endtime <= t->latest_pres_time) {
 
         ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
             "dash : onCuepoint write end emsg : epts='%uD', lpts='%uD', cpts='%uD', "\
