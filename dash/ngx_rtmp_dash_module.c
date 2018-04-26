@@ -133,6 +133,7 @@ typedef struct {
     ngx_msec_t                          fraglen;
     ngx_msec_t                          playlen;
     ngx_flag_t                          nested;
+    ngx_flag_t                          repetition;
     ngx_uint_t                          clock_compensation;     // Try to compensate clock drift
                                                                 //  between client and server (on client side)
     ngx_str_t                           clock_helper_uri;       // Use uri to static file on HTTP server
@@ -189,6 +190,13 @@ static ngx_command_t ngx_rtmp_dash_commands[] = {
       ngx_conf_set_flag_slot,
       NGX_RTMP_APP_CONF_OFFSET,
       offsetof(ngx_rtmp_dash_app_conf_t, nested),
+      NULL },
+
+    { ngx_string("dash_repetition"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_dash_app_conf_t, repetition),
       NULL },
 
     { ngx_string("dash_clock_compensation"),
@@ -310,6 +318,59 @@ ngx_rtmp_dash_gcd(ngx_uint_t m, ngx_uint_t n)
         m=temp;
     }
     return m;
+}
+
+
+static u_char *
+ngx_rtmp_dash_write_segment(u_char *p, u_char *last, ngx_uint_t t,
+    ngx_uint_t d, ngx_uint_t r)
+{
+    if (r == 0) {
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_TIME, t, d);
+    } else {
+        p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_TIME_WITH_REPETITION, t, d, r);
+    }
+
+    return p;
+}
+
+
+static u_char *
+ngx_rtmp_dash_write_segment_timeline(ngx_rtmp_session_t *s, ngx_rtmp_dash_ctx_t *ctx, 
+     ngx_rtmp_dash_app_conf_t *dacf, u_char *p, u_char *last)
+{
+    ngx_uint_t              i, t, d, r;
+    ngx_rtmp_dash_frag_t    *f;
+
+    for (i = 0; i < ctx->nfrags; i++) {
+        f = ngx_rtmp_dash_get_frag(s, i);
+
+        if (dacf->repetition) {
+            if (i == 0) {
+                t = f->timestamp;
+                d = f->duration;
+                r = 0;
+            } else {
+                if (f->duration == d) {
+                    r++;
+                } else {
+                    p = ngx_rtmp_dash_write_segment(p, last, t, d, r);
+                    t = f->timestamp;
+                    d = f->duration;
+                    r = 0;
+                }
+            }
+            if (i == ctx->nfrags - 1) {
+                p = ngx_rtmp_dash_write_segment(p, last, t, d, r);
+            }
+        } else {
+            t = f->timestamp;
+            d = f->duration;
+            p = ngx_rtmp_dash_write_segment(p, last, t, d, 0);
+        }
+    }
+
+    return p;
 }
 
 
@@ -850,11 +911,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
         n = ngx_write_fd(fd, buffer, p - buffer);
 
         p = buffer;
-        for (i = 0; i < ctx->nfrags; i++) {
-            f = ngx_rtmp_dash_get_frag(s, i);
-            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_TIME,
-                             f->timestamp, f->duration);
-        }
+        p = ngx_rtmp_dash_write_segment_timeline(s, ctx, dacf, p, last);
 
         ngx_write_fd(fds, buffer, p - buffer);
 
@@ -877,11 +934,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                          name, sep,
                          name, sep);
 
-        for (i = 0; i < ctx->nfrags; i++) {
-            f = ngx_rtmp_dash_get_frag(s, i);
-            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_TIME,
-                             f->timestamp, f->duration);
-        }
+        p = ngx_rtmp_dash_write_segment_timeline(s, ctx, dacf, p, last);
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO_FOOTER);
 
@@ -2455,6 +2508,7 @@ ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf)
     conf->playlen = NGX_CONF_UNSET_MSEC;
     conf->cleanup = NGX_CONF_UNSET;
     conf->nested = NGX_CONF_UNSET;
+    conf->repetition = NGX_CONF_UNSET;
     conf->clock_compensation = NGX_CONF_UNSET;
     conf->ad_markers = NGX_CONF_UNSET;
 
@@ -2474,6 +2528,7 @@ ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_msec_value(conf->playlen, prev->playlen, 30000);
     ngx_conf_merge_value(conf->cleanup, prev->cleanup, 1);
     ngx_conf_merge_value(conf->nested, prev->nested, 0);
+    ngx_conf_merge_value(conf->repetition, prev->repetition, 0);
     ngx_conf_merge_uint_value(conf->clock_compensation, prev->clock_compensation,
                               NGX_RTMP_DASH_CLOCK_COMPENSATION_OFF);
     ngx_conf_merge_str_value(conf->clock_helper_uri, prev->clock_helper_uri, "");
