@@ -628,11 +628,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                          &ctx->name, sep,
                          &ctx->name, sep);
 
-        for (i = 0; i < ctx->nfrags; i++) {
-            f = ngx_rtmp_dash_get_frag(s, i);
-            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_TIME,
-                             f->timestamp, f->duration);
-        }
+        p = ngx_rtmp_dash_write_segment_timeline(s, ctx, dacf, p, last);
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO_FOOTER);
 
