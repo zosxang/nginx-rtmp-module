@@ -6,10 +6,14 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_rtmp.h>
-#include "ngx_rtmp_mp4_aes_ctr.h"
+#include "ngx_rtmp_aes_ctr.h"
 
 
-static ngx_int_t ngx_rtmp_mp4_aes_ctr_encrypt(const uint8_t *key, const uint8_t *nonce, uint8_t *data, size_t data_len) {
+ngx_int_t
+ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s, 
+    const uint8_t *key, const uint8_t *nonce,
+    uint8_t *data, size_t data_len)
+{
 
     EVP_CIPHER_CTX* cipher;
     size_t j, len, left = data_len;
@@ -17,13 +21,21 @@ static ngx_int_t ngx_rtmp_mp4_aes_ctr_encrypt(const uint8_t *key, const uint8_t 
     uint8_t *pos = data;
     uint8_t counter[AES_BLOCK_SIZE], buf[AES_BLOCK_SIZE];
 
-    ngx_memset(counter + 8, 0, 8);
-    ngx_memcpy(counter, nonce, 8);
+    ngx_memset(counter + NGX_RTMP_MP4_AES_CTR_IV_SIZE, 0, NGX_RTMP_MP4_AES_CTR_IV_SIZE);
+    ngx_memcpy(counter, nonce, NGX_RTMP_MP4_AES_CTR_IV_SIZE);
 
     cipher = EVP_CIPHER_CTX_new();
-    /* test return NGX_ERROR */
-    EVP_EncryptInit_ex(cipher, EVP_aes_128_ecb(), NULL, key, NULL);
-    /* test */
+    if (cipher == NULL) {
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+                      "dash rtmp_aes_ctr_encrypt: evp_cipher_ctx failed");
+        return NGX_ERROR;
+    }
+
+    if (EVP_EncryptInit_ex(cipher, EVP_aes_128_ecb(), NULL, key, NULL) != 1) {
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+                      "dash rtmp_aes_ctr_encrypt: evp_encrypt_init failed");
+        return NGX_ERROR;
+    }
 
     while (left > 0) {
         EVP_EncryptUpdate(cipher, buf, &w, counter, AES_BLOCK_SIZE);

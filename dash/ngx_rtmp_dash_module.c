@@ -7,6 +7,7 @@
 #include "ngx_rtmp_live_module.h"
 #include "ngx_rtmp_mp4.h"
 #include "ngx_rtmp_dash_templates.h"
+#include "ngx_rtmp_aes_ctr.h"
 
 
 static ngx_rtmp_publish_pt              next_publish;
@@ -337,7 +338,7 @@ ngx_rtmp_dash_write_segment(u_char *p, u_char *last, ngx_uint_t t,
 
 static u_char *
 ngx_rtmp_dash_write_segment_timeline(ngx_rtmp_session_t *s, ngx_rtmp_dash_ctx_t *ctx, 
-     ngx_rtmp_dash_app_conf_t *dacf, u_char *p, u_char *last)
+    ngx_rtmp_dash_app_conf_t *dacf, u_char *p, u_char *last)
 {
     ngx_uint_t              i, t, d, r;
     ngx_rtmp_dash_frag_t    *f;
@@ -1752,8 +1753,13 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     u_char                 *p;
     size_t                  size, bsize;
     ngx_rtmp_mp4_sample_t  *smpl;
+    u_char                  cenc_key[NGX_RTMP_AES_CTR_KEY_SIZE];
+    u_char                  cenc_iv[NGX_RTMP_AES_CTR_IV_SIZE];
 
     static u_char           buffer[NGX_RTMP_DASH_BUFSIZE];
+
+    cenc_key = (uint8_t *)"0123456789abcdef";
+    cenc_iv = (uint8_t *)"01234567";
 
     p = buffer;
     size = 0;
@@ -1779,7 +1785,9 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
 
     if (t->sample_count < NGX_RTMP_DASH_MAX_SAMPLES) {
 
-        /* XXX Insert CENC Here ? */
+        /* WIP CENC */
+        ngx_rtmp_aes_ctr_encrypt(s, cenc_key, cenc_iv, buffer, size); 
+
         if (ngx_write_fd(t->fd, buffer, size) == NGX_ERROR) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
                           "dash: " ngx_write_fd_n " failed");
@@ -2202,7 +2210,7 @@ ngx_rtmp_dash_playlist(ngx_rtmp_session_t *s, ngx_rtmp_playlist_t *v)
 
 static ngx_int_t
 ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
-                           ngx_chain_t *in)
+    ngx_chain_t *in)
 {
     ngx_int_t                  res;
     ngx_rtmp_dash_ctx_t       *ctx;
@@ -2281,7 +2289,7 @@ ngx_rtmp_dash_on_cuepoint(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
 
 static ngx_int_t
 ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
-                           ngx_chain_t *in)
+    ngx_chain_t *in)
 {
     ngx_int_t                  res;
     ngx_rtmp_dash_ctx_t       *ctx;
@@ -2397,7 +2405,7 @@ ngx_rtmp_dash_on_cuepoint_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
 
 static ngx_int_t
 ngx_rtmp_dash_on_cuepoint_cont_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
-                           ngx_chain_t *in)
+    ngx_chain_t *in)
 {
     ngx_int_t                  res;
 
@@ -2469,7 +2477,7 @@ ngx_rtmp_dash_on_cuepoint_cont_scte35(ngx_rtmp_session_t *s, ngx_rtmp_header_t *
 
 static ngx_int_t
 ngx_rtmp_dash_ad_markers(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
-                           ngx_chain_t *in)
+    ngx_chain_t *in)
 {
     ngx_rtmp_dash_app_conf_t  *dacf;
     ngx_rtmp_dash_ctx_t       *ctx;
