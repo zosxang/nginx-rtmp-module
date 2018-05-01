@@ -1779,12 +1779,19 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
 
     if (t->sample_count < NGX_RTMP_DASH_MAX_SAMPLES) {
 
+        /* XXX Insert CENC Here ? */
         if (ngx_write_fd(t->fd, buffer, size) == NGX_ERROR) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
                           "dash: " ngx_write_fd_n " failed");
             return NGX_ERROR;
-        }
+        } 
 
+        if (t->type == 'v') {
+            ngx_log_debug1(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+                           "dash: write_video sample : %ui",
+                           t->sample_count);
+        } 
+        
         smpl = &t->samples[t->sample_count];
 
         smpl->delay = delay;
