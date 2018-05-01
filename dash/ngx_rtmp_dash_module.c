@@ -1753,13 +1753,13 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     u_char                 *p;
     size_t                  size, bsize;
     ngx_rtmp_mp4_sample_t  *smpl;
-    u_char                  cenc_key[NGX_RTMP_AES_CTR_KEY_SIZE];
-    u_char                  cenc_iv[NGX_RTMP_AES_CTR_IV_SIZE];
 
+    static u_char           cenc_key[NGX_RTMP_AES_CTR_KEY_SIZE];
+    static u_char           cenc_iv[NGX_RTMP_AES_CTR_IV_SIZE];
     static u_char           buffer[NGX_RTMP_DASH_BUFSIZE];
 
-    cenc_key = (uint8_t *)"0123456789abcdef";
-    cenc_iv = (uint8_t *)"01234567";
+    ngx_cpymem(cenc_key, (u_char *)"0123456789abcdef", NGX_RTMP_AES_CTR_KEY_SIZE);
+    ngx_cpymem(cenc_iv, (u_char *)"deadbeaf", NGX_RTMP_AES_CTR_IV_SIZE);
 
     p = buffer;
     size = 0;
