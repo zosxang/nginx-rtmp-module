@@ -1791,6 +1791,7 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     ngx_rtmp_dash_update_fragments(s, key, timestamp);
 
     if (t->sample_count == 0) {
+        // add a random iv ?
         t->earliest_pres_time = timestamp;
     }
 
@@ -1798,6 +1799,7 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
 
     if (t->sample_count < NGX_RTMP_DASH_MAX_SAMPLES) {
 
+        //update iv + 1
         if (dacf->cenc) {
             ngx_rtmp_aes_ctr_encrypt(s, cenc_key, cenc_iv, buffer, size); 
         }
@@ -1821,6 +1823,11 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
         smpl->duration = 0;
         smpl->timestamp = timestamp;
         smpl->key = (key ? 1 : 0);
+
+        if (dacf->cenc) {
+            smpl->is_protected = 1;
+            smpl->iv = cenc_iv;
+        }
 
         if (t->sample_count > 0) {
             smpl = &t->samples[t->sample_count - 1];

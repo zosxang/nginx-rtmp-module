@@ -7,7 +7,6 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_rtmp.h>
-#include "ngx_rtmp_aes_ctr.h"
 
 
 #define NGX_RTMP_MP4_SAMPLE_SIZE        0x01
@@ -23,7 +22,7 @@ typedef struct {
     uint32_t        timestamp;
     unsigned        key:1;
     unsigned        is_protected:1;
-    u_char          iv[NGX_RTMP_AES_CTR_IV_SIZE];
+    u_char         *iv;
 } ngx_rtmp_mp4_sample_t;
 
 
