@@ -135,6 +135,7 @@ typedef struct {
     ngx_msec_t                          playlen;
     ngx_flag_t                          nested;
     ngx_flag_t                          repetition;
+    ngx_flag_t                          cenc;
     ngx_uint_t                          clock_compensation;     // Try to compensate clock drift
                                                                 //  between client and server (on client side)
     ngx_str_t                           clock_helper_uri;       // Use uri to static file on HTTP server
@@ -198,6 +199,13 @@ static ngx_command_t ngx_rtmp_dash_commands[] = {
       ngx_conf_set_flag_slot,
       NGX_RTMP_APP_CONF_OFFSET,
       offsetof(ngx_rtmp_dash_app_conf_t, repetition),
+      NULL },
+
+    { ngx_string("dash_cenc"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_dash_app_conf_t, cenc),
       NULL },
 
     { ngx_string("dash_clock_compensation"),
@@ -1750,16 +1758,21 @@ static ngx_int_t
 ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     ngx_rtmp_dash_track_t *t, ngx_int_t key, uint32_t timestamp, uint32_t delay)
 {
-    u_char                 *p;
-    size_t                  size, bsize;
-    ngx_rtmp_mp4_sample_t  *smpl;
+    u_char                    *p;
+    size_t                     size, bsize;
+    ngx_rtmp_mp4_sample_t     *smpl;
+    ngx_rtmp_dash_app_conf_t  *dacf;
 
-    static u_char           cenc_key[NGX_RTMP_AES_CTR_KEY_SIZE];
-    static u_char           cenc_iv[NGX_RTMP_AES_CTR_IV_SIZE];
-    static u_char           buffer[NGX_RTMP_DASH_BUFSIZE];
+    static u_char              cenc_key[NGX_RTMP_AES_CTR_KEY_SIZE];
+    static u_char              cenc_iv[NGX_RTMP_AES_CTR_IV_SIZE];
+    static u_char              buffer[NGX_RTMP_DASH_BUFSIZE];
 
-    ngx_cpymem(cenc_key, (u_char *)"0123456789abcdef", NGX_RTMP_AES_CTR_KEY_SIZE);
-    ngx_cpymem(cenc_iv, (u_char *)"deadbeaf", NGX_RTMP_AES_CTR_IV_SIZE);
+    dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
+
+    if (dacf->cenc) {
+        ngx_cpymem(cenc_key, (u_char *)"0123456789abcdef", NGX_RTMP_AES_CTR_KEY_SIZE);
+        ngx_cpymem(cenc_iv, (u_char *)"\xde\xad\xbe\xaf\xf0\x0d\xba\xad", NGX_RTMP_AES_CTR_IV_SIZE);
+    }
 
     p = buffer;
     size = 0;
@@ -1785,8 +1798,9 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
 
     if (t->sample_count < NGX_RTMP_DASH_MAX_SAMPLES) {
 
-        /* WIP CENC */
-        ngx_rtmp_aes_ctr_encrypt(s, cenc_key, cenc_iv, buffer, size); 
+        if (dacf->cenc) {
+            ngx_rtmp_aes_ctr_encrypt(s, cenc_key, cenc_iv, buffer, size); 
+        }
 
         if (ngx_write_fd(t->fd, buffer, size) == NGX_ERROR) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
@@ -2523,6 +2537,7 @@ ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf)
     conf->cleanup = NGX_CONF_UNSET;
     conf->nested = NGX_CONF_UNSET;
     conf->repetition = NGX_CONF_UNSET;
+    conf->cenc = NGX_CONF_UNSET;
     conf->clock_compensation = NGX_CONF_UNSET;
     conf->ad_markers = NGX_CONF_UNSET;
 
@@ -2543,6 +2558,7 @@ ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_value(conf->cleanup, prev->cleanup, 1);
     ngx_conf_merge_value(conf->nested, prev->nested, 0);
     ngx_conf_merge_value(conf->repetition, prev->repetition, 0);
+    ngx_conf_merge_value(conf->cenc, prev->cenc, 0);
     ngx_conf_merge_uint_value(conf->clock_compensation, prev->clock_compensation,
                               NGX_RTMP_DASH_CLOCK_COMPENSATION_OFF);
     ngx_conf_merge_str_value(conf->clock_helper_uri, prev->clock_helper_uri, "");
