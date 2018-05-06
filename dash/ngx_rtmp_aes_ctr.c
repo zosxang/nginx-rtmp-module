@@ -22,6 +22,19 @@ print_counter(ngx_rtmp_session_t *s, uint8_t *c, size_t l)
 }
 
 
+void
+ngx_rtmp_aes_increment_iv(u_char* counter)
+{
+    int i;
+
+    for (i = NGX_RTMP_AES_CTR_IV_SIZE - 1; i >= 0; i--) {
+        counter[i]++;
+        if (counter[i])
+            break;
+    }
+}
+
+
 ngx_int_t
 ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s, 
     const uint8_t *key, const uint8_t *nonce,

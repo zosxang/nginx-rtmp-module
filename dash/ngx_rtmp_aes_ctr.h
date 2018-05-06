@@ -4,6 +4,9 @@
 #define NGX_RTMP_AES_CTR_IV_SIZE (8)
 #define NGX_RTMP_AES_CTR_KEY_SIZE (16)
 
+void
+ngx_rtmp_aes_increment_iv(u_char* counter);
+
 ngx_int_t
 ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s, 
     const uint8_t *key, const uint8_t *nonce,

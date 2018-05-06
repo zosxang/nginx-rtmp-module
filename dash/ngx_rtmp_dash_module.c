@@ -1811,9 +1811,9 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
         } 
 
         if (t->type == 'v') {
-            ngx_log_debug1(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
-                           "dash: write_video sample : %ui",
-                           t->sample_count);
+            ngx_log_debug3(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+                           "dash: write_video sample: count=%ui, key=%ui, size=%ui",
+                           t->sample_count, key, size);
         } 
         
         smpl = &t->samples[t->sample_count];
