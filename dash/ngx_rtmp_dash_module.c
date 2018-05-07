@@ -50,6 +50,7 @@ typedef struct {
     char                                type;
     uint32_t                            earliest_pres_time;
     uint32_t                            latest_pres_time;
+    unsigned                            is_protected:1; 
     ngx_rtmp_mp4_sample_t               samples[NGX_RTMP_DASH_MAX_SAMPLES];
 } ngx_rtmp_dash_track_t;
 
@@ -1278,7 +1279,8 @@ static ngx_int_t
 ngx_rtmp_dash_open_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t,
     ngx_uint_t id, char type)
 {
-    ngx_rtmp_dash_ctx_t   *ctx;
+    ngx_rtmp_dash_ctx_t       *ctx;
+    ngx_rtmp_dash_app_conf_t  *dacf;
 
     if (t->opened) {
         return NGX_OK;
@@ -1288,6 +1290,7 @@ ngx_rtmp_dash_open_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t,
                    "dash: open fragment id=%ui, type='%c'", id, type);
 
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
+    dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
 
     *ngx_sprintf(ctx->stream.data + ctx->stream.len, "raw.m4%c", type) = 0;
 
@@ -1307,6 +1310,10 @@ ngx_rtmp_dash_open_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t,
     t->latest_pres_time = 0;
     t->mdat_size = 0;
     t->opened = 1;
+     
+    if (dacf->cenc) {
+        t->is_protected = 1;
+    }
 
     if (type == 'v') {
         t->sample_mask = NGX_RTMP_MP4_SAMPLE_SIZE|
@@ -1702,7 +1709,6 @@ ngx_rtmp_dash_update_fragments(ngx_rtmp_session_t *s, ngx_int_t boundary,
     } else {
 
         /* sometimes clients generate slightly unordered frames */
-
         hit = (-d > 1000);
     }
 
@@ -1761,17 +1767,14 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     u_char                    *p;
     size_t                     size, bsize;
     ngx_rtmp_mp4_sample_t     *smpl;
-    ngx_rtmp_dash_app_conf_t  *dacf;
 
     static u_char              cenc_key[NGX_RTMP_AES_CTR_KEY_SIZE];
     static u_char              cenc_iv[NGX_RTMP_AES_CTR_IV_SIZE];
     static u_char              buffer[NGX_RTMP_DASH_BUFSIZE];
 
-    dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
-
-    if (dacf->cenc) {
+    if (t->is_protected) {
         ngx_cpymem(cenc_key, (u_char *)"0123456789abcdef", NGX_RTMP_AES_CTR_KEY_SIZE);
-        ngx_cpymem(cenc_iv, (u_char *)"\xde\xad\xbe\xaf\xf0\x0d\xba\xad", NGX_RTMP_AES_CTR_IV_SIZE);
+        //ngx_cpymem(cenc_iv, (u_char *)"\xde\xad\xbe\xaf\xf0\x0d\xba\xad", NGX_RTMP_AES_CTR_IV_SIZE);
     }
 
     p = buffer;
@@ -1791,17 +1794,19 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     ngx_rtmp_dash_update_fragments(s, key, timestamp);
 
     if (t->sample_count == 0) {
-        // add a random iv ?
         t->earliest_pres_time = timestamp;
+        if (t->is_protected) {
+            ngx_rtmp_aes_rand_iv(cenc_iv);
+        }
     }
 
     t->latest_pres_time = timestamp;
 
     if (t->sample_count < NGX_RTMP_DASH_MAX_SAMPLES) {
 
-        //update iv + 1
-        if (dacf->cenc) {
+        if (t->is_protected) {
             ngx_rtmp_aes_ctr_encrypt(s, cenc_key, cenc_iv, buffer, size); 
+            ngx_rtmp_aes_increment_iv(cenc_iv);
         }
 
         if (ngx_write_fd(t->fd, buffer, size) == NGX_ERROR) {
@@ -1824,7 +1829,7 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
         smpl->timestamp = timestamp;
         smpl->key = (key ? 1 : 0);
 
-        if (dacf->cenc) {
+        if (t->is_protected) {
             smpl->is_protected = 1;
             smpl->iv = cenc_iv;
         }
@@ -1921,6 +1926,7 @@ ngx_rtmp_dash_video(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
         return NGX_ERROR;
     }
 
+    /* check what header it is */
     ftype = (in->buf->pos[0] & 0xf0) >> 4;
 
     /* skip AVC config */

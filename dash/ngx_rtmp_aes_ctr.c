@@ -22,14 +22,25 @@ print_counter(ngx_rtmp_session_t *s, uint8_t *c, size_t l)
 }
 
 
+ngx_int_t
+ngx_rtmp_aes_rand_iv(u_char* iv)
+{
+    if(RAND_bytes(iv, NGX_RTMP_AES_CTR_IV_SIZE) != 1) {
+        return NGX_ERROR;
+    }
+
+    return NGX_OK;
+}
+
+
 void
-ngx_rtmp_aes_increment_iv(u_char* counter)
+ngx_rtmp_aes_increment_iv(u_char* iv)
 {
     int i;
 
     for (i = NGX_RTMP_AES_CTR_IV_SIZE - 1; i >= 0; i--) {
-        counter[i]++;
-        if (counter[i])
+        iv[i]++;
+        if (iv[i])
             break;
     }
 }
@@ -37,7 +48,7 @@ ngx_rtmp_aes_increment_iv(u_char* counter)
 
 ngx_int_t
 ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s, 
-    const uint8_t *key, const uint8_t *nonce,
+    const uint8_t *key, const uint8_t *iv,
     uint8_t *data, size_t data_len)
 {
 
@@ -48,7 +59,7 @@ ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s,
     uint8_t         counter[AES_BLOCK_SIZE], buf[AES_BLOCK_SIZE];
 
     ngx_memset(counter + NGX_RTMP_AES_CTR_IV_SIZE, 0, NGX_RTMP_AES_CTR_IV_SIZE);
-    ngx_memcpy(counter, nonce, NGX_RTMP_AES_CTR_IV_SIZE);
+    ngx_memcpy(counter, iv, NGX_RTMP_AES_CTR_IV_SIZE);
 
     cipher = EVP_CIPHER_CTX_new();
     if (cipher == NULL) {
