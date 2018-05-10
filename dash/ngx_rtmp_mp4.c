@@ -1085,6 +1085,7 @@ static ngx_int_t
 ngx_rtmp_mp4_write_saio(ngx_buf_t *b, u_char *moof_pos)
 {
     u_char    *pos;
+    uint32_t   offset;
 
     pos = ngx_rtmp_mp4_start_box(b, "saio");
 
@@ -1094,8 +1095,9 @@ ngx_rtmp_mp4_write_saio(ngx_buf_t *b, u_char *moof_pos)
     /* entry count */
     ngx_rtmp_mp4_field_32(b, 1);
 
-    /* entry 0 offset */
-    ngx_rtmp_mp4_field_32(b, 341);
+    /* entry 0 is offset to the first IV in senc box */
+    offset = (pos - moof_pos) + 20 + 16;
+    ngx_rtmp_mp4_field_32(b, offset);
 
     ngx_rtmp_mp4_update_box_size(b, pos);
 
