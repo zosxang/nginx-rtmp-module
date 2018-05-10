@@ -7,6 +7,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_rtmp.h>
+#include "ngx_rtmp_aes_ctr.h"
 
 
 #define NGX_RTMP_MP4_SAMPLE_SIZE        0x01
@@ -44,7 +45,7 @@ ngx_int_t ngx_rtmp_mp4_write_moov(ngx_rtmp_session_t *s, ngx_buf_t *b,
     ngx_rtmp_mp4_track_type_t ttype);
 ngx_int_t ngx_rtmp_mp4_write_moof(ngx_buf_t *b, uint32_t earliest_pres_time,
     uint32_t sample_count, ngx_rtmp_mp4_sample_t *samples,
-    ngx_uint_t sample_mask, uint32_t index);
+    ngx_uint_t sample_mask, uint32_t index, ngx_flag_t is_protected);
 ngx_int_t ngx_rtmp_mp4_write_sidx(ngx_buf_t *b,
     ngx_uint_t reference_size, uint32_t earliest_pres_time,
     uint32_t latest_pres_time);

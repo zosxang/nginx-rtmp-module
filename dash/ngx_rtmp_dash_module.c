@@ -1175,7 +1175,7 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
     b.last += 44; /* leave room for sidx */
 
     ngx_rtmp_mp4_write_moof(&b, t->earliest_pres_time, t->sample_count,
-                            t->samples, t->sample_mask, t->id);
+                            t->samples, t->sample_mask, t->id, t->is_protected);
     pos1 = b.last;
     b.last = pos;
 
