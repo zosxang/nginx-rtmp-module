@@ -51,6 +51,7 @@ typedef struct {
     uint32_t                            earliest_pres_time;
     uint32_t                            latest_pres_time;
     unsigned                            is_protected:1; 
+    u_char                              iv[NGX_RTMP_AES_CTR_IV_SIZE];
     ngx_rtmp_mp4_sample_t               samples[NGX_RTMP_DASH_MAX_SAMPLES];
 } ngx_rtmp_dash_track_t;
 
@@ -1769,12 +1770,12 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     ngx_rtmp_mp4_sample_t     *smpl;
 
     static u_char              cenc_key[NGX_RTMP_AES_CTR_KEY_SIZE];
-    static u_char              cenc_iv[NGX_RTMP_AES_CTR_IV_SIZE];
     static u_char              buffer[NGX_RTMP_DASH_BUFSIZE];
 
     if (t->is_protected) {
-        ngx_cpymem(cenc_key, (u_char *)"0123456789abcdef", NGX_RTMP_AES_CTR_KEY_SIZE);
-        //ngx_cpymem(cenc_iv, (u_char *)"\xde\xad\xbe\xaf\xf0\x0d\xba\xad", NGX_RTMP_AES_CTR_IV_SIZE);
+        ngx_cpymem(cenc_key, 
+            (u_char *)"\xde\xad\xbe\xaf\xf0\x0d\xba\xad\xde\xad\xbe\xaf\xf0\x0d\xba\xad",
+            NGX_RTMP_AES_CTR_KEY_SIZE);
     }
 
     p = buffer;
@@ -1796,7 +1797,7 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     if (t->sample_count == 0) {
         t->earliest_pres_time = timestamp;
         if (t->is_protected) {
-            ngx_rtmp_aes_rand_iv(cenc_iv);
+            ngx_rtmp_aes_rand_iv(t->iv);
         }
     }
 
@@ -1805,8 +1806,8 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     if (t->sample_count < NGX_RTMP_DASH_MAX_SAMPLES) {
 
         if (t->is_protected) {
-            ngx_rtmp_aes_ctr_encrypt(s, cenc_key, cenc_iv, buffer, size); 
-            ngx_rtmp_aes_increment_iv(cenc_iv);
+            ngx_rtmp_aes_ctr_encrypt(s, cenc_key, t->iv, buffer, size); 
+            ngx_rtmp_aes_increment_iv(t->iv);
         }
 
         if (ngx_write_fd(t->fd, buffer, size) == NGX_ERROR) {
@@ -1831,7 +1832,7 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
 
         if (t->is_protected) {
             smpl->is_protected = 1;
-            smpl->iv = cenc_iv;
+            ngx_memcpy(smpl->iv, t->iv, NGX_RTMP_AES_CTR_IV_SIZE);
         }
 
         if (t->sample_count > 0) {

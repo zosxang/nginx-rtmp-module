@@ -23,7 +23,7 @@ typedef struct {
     uint32_t        timestamp;
     unsigned        key:1;
     unsigned        is_protected:1;
-    u_char         *iv;
+    u_char          iv[NGX_RTMP_AES_CTR_IV_SIZE];
 } ngx_rtmp_mp4_sample_t;
 
 
