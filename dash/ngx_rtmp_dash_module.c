@@ -1774,7 +1774,7 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
 
     if (t->is_protected) {
         ngx_cpymem(cenc_key, 
-            (u_char *)"\xde\xad\xbe\xaf\xf0\x0d\xba\xad\xde\xad\xbe\xaf\xf0\x0d\xba\xad",
+            (u_char *)"\xf0\x0d\xf0\x0d\xf0\x0d\xf0\x0d\xf0\x0d\xf0\x0d\xf0\x0d\xf0\x0d",
             NGX_RTMP_AES_CTR_KEY_SIZE);
     }
 
