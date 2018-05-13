@@ -1336,7 +1336,7 @@ ngx_rtmp_dash_open_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t,
 
         n = ngx_read_fd(fd, t->key, NGX_RTMP_AES_CTR_KEY_SIZE);
         if (n != NGX_RTMP_AES_CTR_KEY_SIZE) {
-            ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                           "dash: error cenc key length is invalid");
             return NGX_ERROR;
         }

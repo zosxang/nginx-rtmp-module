@@ -10,15 +10,18 @@
 
 
 void 
-print_counter(ngx_rtmp_session_t *s, uint8_t *c, size_t l)
+debug_counter(ngx_rtmp_session_t *s, uint8_t *c, uint8_t *k, size_t l)
 {
-    u_char hex[AES_BLOCK_SIZE*2+1];
+    u_char hexc[AES_BLOCK_SIZE*2+1];
+    u_char hexk[AES_BLOCK_SIZE*2+1];
 
-    ngx_hex_dump(hex, c, AES_BLOCK_SIZE);
-    hex[AES_BLOCK_SIZE*2] = '\0';
+    ngx_hex_dump(hexc, c, AES_BLOCK_SIZE);
+    ngx_hex_dump(hexk, k, AES_BLOCK_SIZE);
+    hexc[AES_BLOCK_SIZE*2] = '\0';
+    hexk[AES_BLOCK_SIZE*2] = '\0';
 
-    ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
-        "dash aes_counter: %ui %s", l, hex);
+    ngx_log_debug3(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+        "dash aes_counter: %ui %s %s", l, hexc, hexk);
 }
 
 
@@ -47,8 +50,7 @@ ngx_rtmp_aes_increment_iv(u_char* iv)
 
 
 ngx_int_t
-ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s, 
-    const uint8_t *key, const uint8_t *iv,
+ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
     uint8_t *data, size_t data_len)
 {
 
@@ -63,20 +65,20 @@ ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s,
 
     cipher = EVP_CIPHER_CTX_new();
     if (cipher == NULL) {
-        ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                       "dash rtmp_aes_ctr_encrypt: evp_cipher_ctx failed");
         return NGX_ERROR;
     }
 
     if (EVP_EncryptInit_ex(cipher, EVP_aes_128_ecb(), NULL, key, NULL) != 1) {
-        ngx_log_error(NGX_LOG_ERR, s->connection->log, ngx_errno,
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                       "dash rtmp_aes_ctr_encrypt: evp_encrypt_init failed");
         return NGX_ERROR;
     }
 
     while (left > 0) {
 
-        print_counter(s, counter, left);
+        debug_counter(s, counter, key, left);
         EVP_EncryptUpdate(cipher, buf, &w, counter, AES_BLOCK_SIZE);
 
         len = (left < AES_BLOCK_SIZE) ? left : AES_BLOCK_SIZE;
