@@ -23,7 +23,8 @@ static ngx_int_t ngx_rtmp_dash_postconfiguration(ngx_conf_t *cf);
 static void * ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf);
 static char * ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf,
        void *parent, void *child);
-static ngx_int_t ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s);
+static ngx_int_t ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s,
+       ngx_flag_t is_protected);
 static ngx_int_t ngx_rtmp_dash_ensure_directory(ngx_rtmp_session_t *s);
 
 
@@ -751,7 +752,11 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     }
 
     if (ctx->id == 0) {
-        ngx_rtmp_dash_write_init_segments(s);
+        if (dacf->cenc) {
+            ngx_rtmp_dash_write_init_segments(s, 1);
+        } else {
+            ngx_rtmp_dash_write_init_segments(s, 0);
+        }
     }
 
     fd = ngx_open_file(ctx->playlist_bak.data, NGX_FILE_WRONLY,
@@ -1032,7 +1037,8 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
 
 
 static ngx_int_t
-ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s)
+ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s,
+    ngx_flag_t is_protected)
 {
     ngx_fd_t               fd;
     ngx_int_t              rc;
@@ -1067,7 +1073,11 @@ ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s)
     b.pos = b.last = b.start;
 
     ngx_rtmp_mp4_write_ftyp(&b);
-    ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_VIDEO_TRACK);
+    if (is_protected) {
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EVIDEO_TRACK);
+    } else {
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_VIDEO_TRACK);
+    } 
 
     rc = ngx_write_fd(fd, b.start, (size_t) (b.last - b.start));
     if (rc == NGX_ERROR) {
@@ -1093,7 +1103,11 @@ ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s)
     b.pos = b.last = b.start;
 
     ngx_rtmp_mp4_write_ftyp(&b);
-    ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_AUDIO_TRACK);
+    if (is_protected) {
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EAUDIO_TRACK);
+    } else {
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_AUDIO_TRACK);
+    } 
 
     rc = ngx_write_fd(fd, b.start, (size_t) (b.last - b.start));
     if (rc == NGX_ERROR) {

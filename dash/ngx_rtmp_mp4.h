@@ -35,7 +35,9 @@ typedef enum {
 
 typedef enum {
     NGX_RTMP_MP4_VIDEO_TRACK,
-    NGX_RTMP_MP4_AUDIO_TRACK
+    NGX_RTMP_MP4_AUDIO_TRACK,
+    NGX_RTMP_MP4_EVIDEO_TRACK,
+    NGX_RTMP_MP4_EAUDIO_TRACK
 } ngx_rtmp_mp4_track_type_t;
 
 
