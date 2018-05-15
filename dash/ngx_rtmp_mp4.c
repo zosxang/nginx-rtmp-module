@@ -499,14 +499,14 @@ ngx_rtmp_mp4_write_dinf(ngx_buf_t *b)
 
 
 static ngx_int_t
-ngx_rtmp_mp4_write_frma(ngx_buf_t *b)
+ngx_rtmp_mp4_write_frma(ngx_buf_t *b, const char format[4])
 {
     u_char  *pos;
 
     pos = ngx_rtmp_mp4_start_box(b, "frma");
 
     /* original_format */
-    ngx_rtmp_mp4_box(b, "avc1");
+    ngx_rtmp_mp4_box(b, format);
 
     ngx_rtmp_mp4_update_box_size(b, pos);
 
@@ -584,13 +584,13 @@ ngx_rtmp_mp4_write_schi(ngx_buf_t *b)
 
 
 static ngx_int_t
-ngx_rtmp_mp4_write_sinf(ngx_buf_t *b)
+ngx_rtmp_mp4_write_sinf(ngx_buf_t *b, const char format[4])
 {
     u_char  *pos;
 
     pos = ngx_rtmp_mp4_start_box(b, "sinf");
 
-    ngx_rtmp_mp4_write_frma(b);
+    ngx_rtmp_mp4_write_frma(b, format);
     ngx_rtmp_mp4_write_schm(b);
     ngx_rtmp_mp4_write_schi(b);
 
@@ -709,7 +709,7 @@ ngx_rtmp_mp4_write_video(ngx_rtmp_session_t *s, ngx_buf_t *b)
 
 
 static ngx_int_t
-ngx_rtmp_mp4_write_svideo(ngx_rtmp_session_t *s, ngx_buf_t *b)
+ngx_rtmp_mp4_write_evideo(ngx_rtmp_session_t *s, ngx_buf_t *b)
 {
     u_char                *pos;
     ngx_rtmp_codec_ctx_t  *codec_ctx;
@@ -764,7 +764,7 @@ ngx_rtmp_mp4_write_svideo(ngx_rtmp_session_t *s, ngx_buf_t *b)
 
     ngx_rtmp_mp4_write_avcc(s, b);
 
-    ngx_rtmp_mp4_write_sinf(b);
+    ngx_rtmp_mp4_write_sinf(b, "avc1");
 
     ngx_rtmp_mp4_update_box_size(b, pos);
 
@@ -903,6 +903,59 @@ ngx_rtmp_mp4_write_audio(ngx_rtmp_session_t *s, ngx_buf_t *b)
 
 
 static ngx_int_t
+ngx_rtmp_mp4_write_eaudio(ngx_rtmp_session_t *s, ngx_buf_t *b)
+{
+    u_char                *pos;
+    ngx_rtmp_codec_ctx_t  *codec_ctx;
+
+    codec_ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_codec_module);
+
+    pos = ngx_rtmp_mp4_start_box(b, "enca");
+
+    /* reserved */
+    ngx_rtmp_mp4_field_32(b, 0);
+    ngx_rtmp_mp4_field_16(b, 0);
+
+    /* data reference index */
+    ngx_rtmp_mp4_field_16(b, 1);
+
+    /* reserved */
+    ngx_rtmp_mp4_field_32(b, 0);
+    ngx_rtmp_mp4_field_32(b, 0);
+
+    /* channel count */
+    ngx_rtmp_mp4_field_16(b, (uint16_t) codec_ctx->audio_channels);
+
+    /* sample size */
+    ngx_rtmp_mp4_field_16(b, (uint16_t) (codec_ctx->sample_size * 8));
+
+    /* reserved */
+    ngx_rtmp_mp4_field_32(b, 0);
+
+    /* time scale */
+    ngx_rtmp_mp4_field_16(b, 1000);
+
+    /* sample rate */
+    ngx_rtmp_mp4_field_16(b, (uint16_t) codec_ctx->sample_rate);
+
+    ngx_rtmp_mp4_write_esds(s, b);
+#if 0
+    /* tag size*/
+    ngx_rtmp_mp4_field_32(b, 8);
+
+    /* null tag */
+    ngx_rtmp_mp4_field_32(b, 0);
+#endif
+
+    ngx_rtmp_mp4_write_sinf(b, "mp4a");
+
+    ngx_rtmp_mp4_update_box_size(b, pos);
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
 ngx_rtmp_mp4_write_stsd(ngx_rtmp_session_t *s, ngx_buf_t *b,
     ngx_rtmp_mp4_track_type_t ttype)
 {
@@ -919,11 +972,11 @@ ngx_rtmp_mp4_write_stsd(ngx_rtmp_session_t *s, ngx_buf_t *b,
     if (ttype == NGX_RTMP_MP4_VIDEO_TRACK) { 
         ngx_rtmp_mp4_write_video(s, b);
     } else if (ttype == NGX_RTMP_MP4_EVIDEO_TRACK){
-        ngx_rtmp_mp4_write_svideo(s, b);
+        ngx_rtmp_mp4_write_evideo(s, b);
     } else if (ttype == NGX_RTMP_MP4_AUDIO_TRACK){
         ngx_rtmp_mp4_write_audio(s, b);
     } else if (ttype == NGX_RTMP_MP4_EAUDIO_TRACK){
-        ngx_rtmp_mp4_write_audio(s, b);
+        ngx_rtmp_mp4_write_eaudio(s, b);
     }
 
     ngx_rtmp_mp4_update_box_size(b, pos);
