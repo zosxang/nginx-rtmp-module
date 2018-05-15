@@ -1843,7 +1843,6 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
 
         if (t->is_protected) {
             ngx_rtmp_aes_ctr_encrypt(s, t->key, t->iv, buffer, size); 
-            ngx_rtmp_aes_increment_iv(t->iv);
         }
 
         if (ngx_write_fd(t->fd, buffer, size) == NGX_ERROR) {
@@ -1869,6 +1868,7 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
         if (t->is_protected) {
             smpl->is_protected = 1;
             ngx_memcpy(smpl->iv, t->iv, NGX_RTMP_AES_CTR_IV_SIZE);
+            ngx_rtmp_aes_increment_iv(t->iv);
         }
 
         if (t->sample_count > 0) {
