@@ -1380,6 +1380,12 @@ ngx_rtmp_mp4_write_traf(ngx_buf_t *b, uint32_t earliest_pres_time,
     ngx_rtmp_mp4_write_trun(b, sample_count, samples, sample_mask, 
         moof_pos, is_protected);
 
+    if (is_protected) {
+        ngx_rtmp_mp4_write_saiz(b, sample_count);
+        ngx_rtmp_mp4_write_saio(b, pos);
+        ngx_rtmp_mp4_write_senc(b, sample_count, samples);
+    }
+
     ngx_rtmp_mp4_update_box_size(b, pos);
 
     return NGX_OK;
@@ -1467,12 +1473,6 @@ ngx_rtmp_mp4_write_moof(ngx_buf_t *b, uint32_t earliest_pres_time,
     ngx_rtmp_mp4_write_mfhd(b, index);
     ngx_rtmp_mp4_write_traf(b, earliest_pres_time, sample_count, samples,
                             sample_mask, pos, is_protected);
-
-    if (is_protected) {
-        ngx_rtmp_mp4_write_saiz(b, sample_count);
-        ngx_rtmp_mp4_write_saio(b, pos);
-        ngx_rtmp_mp4_write_senc(b, sample_count, samples);
-    }
 
     ngx_rtmp_mp4_update_box_size(b, pos);
 
