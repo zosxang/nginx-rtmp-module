@@ -1257,7 +1257,7 @@ ngx_rtmp_mp4_write_trun(ngx_buf_t *b, uint32_t sample_count,
          * saiz(17) saio(20) senc(16 + sc*8) 
          * to the data offset */
         offset = (pos - moof_pos) + 20 + (sample_count * nitems * 4);
-        offset += 17 + 20 + 16 + (sample_count * NGX_RTMP_AES_CTR_IV_SIZE) + 8;
+        offset += 17 + 20 + 16 + (sample_count * NGX_RTMP_CENC_IV_SIZE) + 8;
 
     } else {
         offset = (pos - moof_pos) + 20 + (sample_count * nitems * 4) + 8;
@@ -1356,7 +1356,7 @@ ngx_rtmp_mp4_write_senc(ngx_buf_t *b, uint32_t sample_count,
     for (i = 0; i < sample_count; i++, samples++) {
 
         /* IV per sample */
-        ngx_rtmp_mp4_data(b, samples->iv, NGX_RTMP_AES_CTR_IV_SIZE);
+        ngx_rtmp_mp4_data(b, samples->iv, NGX_RTMP_CENC_IV_SIZE);
 
     }
 

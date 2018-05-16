@@ -6,7 +6,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_rtmp.h>
-#include "ngx_rtmp_aes_ctr.h"
+#include "ngx_rtmp_cenc.h"
 
 
 void 
@@ -21,14 +21,14 @@ debug_counter(ngx_rtmp_session_t *s, uint8_t *c, uint8_t *k, size_t l)
     hexk[AES_BLOCK_SIZE*2] = '\0';
 
     ngx_log_debug3(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
-        "dash aes_counter: %ui %s %s", l, hexc, hexk);
+        "dash cenc_counter: %ui %s %s", l, hexc, hexk);
 }
 
 
 ngx_int_t
-ngx_rtmp_aes_rand_iv(u_char* iv)
+ngx_rtmp_cenc_rand_iv(u_char* iv)
 {
-    if(RAND_bytes(iv, NGX_RTMP_AES_CTR_IV_SIZE) != 1) {
+    if(RAND_bytes(iv, NGX_RTMP_CENC_IV_SIZE) != 1) {
         return NGX_ERROR;
     }
 
@@ -37,11 +37,11 @@ ngx_rtmp_aes_rand_iv(u_char* iv)
 
 
 void
-ngx_rtmp_aes_increment_iv(u_char* iv)
+ngx_rtmp_cenc_increment_iv(u_char* iv)
 {
     int i;
 
-    for (i = NGX_RTMP_AES_CTR_IV_SIZE - 1; i >= 0; i--) {
+    for (i = NGX_RTMP_CENC_IV_SIZE - 1; i >= 0; i--) {
         iv[i]++;
         if (iv[i])
             break;
@@ -50,9 +50,10 @@ ngx_rtmp_aes_increment_iv(u_char* iv)
 
 
 ngx_int_t
-ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
+ngx_rtmp_cenc_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
     uint8_t *data, size_t data_len)
 {
+    /* aes-ctr implementation */
 
     EVP_CIPHER_CTX* cipher;
     size_t          j, len, left = data_len;
@@ -60,19 +61,19 @@ ngx_rtmp_aes_ctr_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
     uint8_t        *pos = data;
     uint8_t         counter[AES_BLOCK_SIZE], buf[AES_BLOCK_SIZE];
 
-    ngx_memset(counter + NGX_RTMP_AES_CTR_IV_SIZE, 0, NGX_RTMP_AES_CTR_IV_SIZE);
-    ngx_memcpy(counter, iv, NGX_RTMP_AES_CTR_IV_SIZE);
+    ngx_memset(counter + NGX_RTMP_CENC_IV_SIZE, 0, NGX_RTMP_CENC_IV_SIZE);
+    ngx_memcpy(counter, iv, NGX_RTMP_CENC_IV_SIZE);
 
     cipher = EVP_CIPHER_CTX_new();
     if (cipher == NULL) {
         ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
-                      "dash rtmp_aes_ctr_encrypt: evp_cipher_ctx failed");
+                      "dash rtmp_cenc_encrypt: evp_cipher_ctx failed");
         return NGX_ERROR;
     }
 
     if (EVP_EncryptInit_ex(cipher, EVP_aes_128_ecb(), NULL, key, NULL) != 1) {
         ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
-                      "dash rtmp_aes_ctr_encrypt: evp_encrypt_init failed");
+                      "dash rtmp_cenc_encrypt: evp_encrypt_init failed");
         return NGX_ERROR;
     }
 
