@@ -26,6 +26,28 @@ debug_counter(ngx_rtmp_session_t *s, uint8_t *c, uint8_t *k, size_t l)
 
 
 ngx_int_t
+ngx_rtmp_cenc_read_hex(ngx_str_t src, u_char* dst)
+{
+    u_char  l, h;
+    size_t  i;
+
+    if (src.len != NGX_RTMP_CENC_KEY_SIZE*2) {
+        return NGX_ERROR;
+    }
+
+    for (i = 0; i < NGX_RTMP_CENC_KEY_SIZE; i++) {
+       l = tolower(src.data[i*2]);       
+       h = tolower(src.data[i*2+1]);       
+       l = l >= 'a' ? l - 'a' + 10 : l - '0'; 
+       h = h >= 'a' ? h - 'a' + 10 : h - '0'; 
+       dst[i] = (l <<= 4) | h; 
+    }
+
+    return NGX_OK;
+}
+
+
+ngx_int_t
 ngx_rtmp_cenc_rand_iv(u_char* iv)
 {
     if(RAND_bytes(iv, NGX_RTMP_CENC_IV_SIZE) != 1) {

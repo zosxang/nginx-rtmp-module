@@ -4,6 +4,8 @@
 #define NGX_RTMP_CENC_IV_SIZE (8)
 #define NGX_RTMP_CENC_KEY_SIZE (16)
 
+ngx_int_t
+ngx_rtmp_cenc_read_hex(ngx_str_t src, u_char* dst);
 
 ngx_int_t
 ngx_rtmp_cenc_rand_iv(u_char* iv);

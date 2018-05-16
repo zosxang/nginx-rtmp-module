@@ -53,6 +53,7 @@ typedef struct {
     uint32_t                            latest_pres_time;
     unsigned                            is_protected:1; 
     u_char                              key[NGX_RTMP_CENC_KEY_SIZE];
+    u_char                              kid[NGX_RTMP_CENC_KEY_SIZE];
     u_char                              iv[NGX_RTMP_CENC_IV_SIZE];
     ngx_rtmp_mp4_sample_t               samples[NGX_RTMP_DASH_MAX_SAMPLES];
 } ngx_rtmp_dash_track_t;
@@ -1345,13 +1346,15 @@ ngx_rtmp_dash_open_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t,
      
     if (dacf->cenc) {
 
-        dacf->cenc_key.data
-
-
-        n = ngx_read_fd(fd, t->key, NGX_RTMP_CENC_KEY_SIZE);
-        if ( ngx_aes== ) {
+        if (ngx_rtmp_cenc_read_hex(dacf->cenc_key, t->key) == NGX_ERROR) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                           "dash: error cenc key is invalid");
+            return NGX_ERROR;
+        }
+
+        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, t->kid) == NGX_ERROR) {
+            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
+                          "dash: error cenc kid is invalid");
             return NGX_ERROR;
         }
 
