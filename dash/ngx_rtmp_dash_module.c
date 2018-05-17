@@ -23,8 +23,7 @@ static ngx_int_t ngx_rtmp_dash_postconfiguration(ngx_conf_t *cf);
 static void * ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf);
 static char * ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf,
        void *parent, void *child);
-static ngx_int_t ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s,
-       ngx_flag_t is_protected);
+static ngx_int_t ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s);
 static ngx_int_t ngx_rtmp_dash_ensure_directory(ngx_rtmp_session_t *s);
 
 
@@ -53,7 +52,6 @@ typedef struct {
     uint32_t                            latest_pres_time;
     unsigned                            is_protected:1; 
     u_char                              key[NGX_RTMP_CENC_KEY_SIZE];
-    u_char                              kid[NGX_RTMP_CENC_KEY_SIZE];
     u_char                              iv[NGX_RTMP_CENC_IV_SIZE];
     ngx_rtmp_mp4_sample_t               samples[NGX_RTMP_DASH_MAX_SAMPLES];
 } ngx_rtmp_dash_track_t;
@@ -761,11 +759,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     }
 
     if (ctx->id == 0) {
-        if (dacf->cenc) {
-            ngx_rtmp_dash_write_init_segments(s, 1);
-        } else {
-            ngx_rtmp_dash_write_init_segments(s, 0);
-        }
+        ngx_rtmp_dash_write_init_segments(s);
     }
 
     fd = ngx_open_file(ctx->playlist_bak.data, NGX_FILE_WRONLY,
@@ -1046,21 +1040,23 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
 
 
 static ngx_int_t
-ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s,
-    ngx_flag_t is_protected)
+ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s)
 {
-    ngx_fd_t               fd;
-    ngx_int_t              rc;
-    ngx_buf_t              b;
-    ngx_rtmp_dash_ctx_t   *ctx;
-    ngx_rtmp_codec_ctx_t  *codec_ctx;
+    ngx_fd_t                   fd;
+    ngx_int_t                  rc;
+    ngx_buf_t                  b;
+    ngx_rtmp_dash_ctx_t       *ctx;
+    ngx_rtmp_codec_ctx_t      *codec_ctx;
+    ngx_rtmp_dash_app_conf_t  *dacf;
 
     static u_char          buffer[NGX_RTMP_DASH_BUFSIZE];
+    static u_char          kid[NGX_RTMP_CENC_KEY_SIZE];
 
+    dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
     codec_ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_codec_module);
 
-    if (ctx == NULL || codec_ctx == NULL) {
+    if (dacf == NULL || ctx == NULL || codec_ctx == NULL) {
         return NGX_ERROR;
     }
 
@@ -1082,10 +1078,15 @@ ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s,
     b.pos = b.last = b.start;
 
     ngx_rtmp_mp4_write_ftyp(&b);
-    if (is_protected) {
-        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EVIDEO_TRACK);
+    if (dacf->cenc) {
+        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, kid) == NGX_ERROR) {
+            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
+                          "dash: error cenc kid is invalid");
+            return NGX_ERROR;
+        }
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EVIDEO_TRACK, kid);
     } else {
-        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_VIDEO_TRACK);
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_VIDEO_TRACK, NULL);
     } 
 
     rc = ngx_write_fd(fd, b.start, (size_t) (b.last - b.start));
@@ -1112,10 +1113,10 @@ ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s,
     b.pos = b.last = b.start;
 
     ngx_rtmp_mp4_write_ftyp(&b);
-    if (is_protected) {
-        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EAUDIO_TRACK);
+    if (dacf->cenc) {
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EAUDIO_TRACK, kid);
     } else {
-        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_AUDIO_TRACK);
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_AUDIO_TRACK, NULL);
     } 
 
     rc = ngx_write_fd(fd, b.start, (size_t) (b.last - b.start));
@@ -1349,12 +1350,6 @@ ngx_rtmp_dash_open_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t,
         if (ngx_rtmp_cenc_read_hex(dacf->cenc_key, t->key) == NGX_ERROR) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                           "dash: error cenc key is invalid");
-            return NGX_ERROR;
-        }
-
-        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, t->kid) == NGX_ERROR) {
-            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
-                          "dash: error cenc kid is invalid");
             return NGX_ERROR;
         }
 

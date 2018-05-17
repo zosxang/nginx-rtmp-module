@@ -40,7 +40,7 @@ ngx_rtmp_cenc_read_hex(ngx_str_t src, u_char* dst)
        h = tolower(src.data[i*2+1]);       
        l = l >= 'a' ? l - 'a' + 10 : l - '0'; 
        h = h >= 'a' ? h - 'a' + 10 : h - '0'; 
-       dst[i] = (l <<= 4) | h; 
+       dst[i] = (l << 4) | h; 
     }
 
     return NGX_OK;
