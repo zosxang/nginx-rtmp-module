@@ -101,7 +101,7 @@ ngx_rtmp_cenc_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
 
     while (left > 0) {
 
-        debug_counter(s, counter, key, left);
+        //debug_counter(s, counter, key, left);
         EVP_EncryptUpdate(cipher, buf, &w, counter, AES_BLOCK_SIZE);
 
         len = (left < AES_BLOCK_SIZE) ? left : AES_BLOCK_SIZE;

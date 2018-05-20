@@ -40,6 +40,13 @@
     "        par=\"%ui:%ui\">\n"
 
 
+#define NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_CENC                         \
+    "      <ContentProtection\n"                                               \
+    "        cenc:default_KID=\"43215678-1234-1234-1234-123412341234\"\n"      \
+    "        schemeIdUri=\"urn:mpeg:dash:mp4protection:2011\"\n"               \
+    "        value=\"cenc\"/>"
+
+
 #define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO                            \
     "      <Representation\n"                                                  \
     "          id=\"%V_H264\"\n"                                               \

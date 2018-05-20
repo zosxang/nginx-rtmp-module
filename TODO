@@ -1,4 +1,7 @@
 - need doc
 - need re-upstream
 - test common encryption code
+ - add support for sub sample encryption 
+ - add sig in manifest
+ - add sig for wdv ?
 - rewritte the variant code for dash, using memory ?
