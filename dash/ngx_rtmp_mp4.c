@@ -537,9 +537,13 @@ ngx_rtmp_mp4_write_schm(ngx_buf_t *b)
 
 
 static ngx_int_t
-ngx_rtmp_mp4_write_pssh(ngx_buf_t *b, u_char *kid)
+ngx_rtmp_mp4_write_pssh_ck(ngx_buf_t *b, u_char *kid)
 {
     u_char  *pos;
+    u_char   ck_sid[] = {
+        0x10, 0x77, 0xef, 0xec, 0xc0, 0xb2, 0x4d, 0x02, 
+        0xac, 0xe3, 0x3c, 0x1e, 0x52, 0xe2, 0xfb, 0x4b
+    };
 
     pos = ngx_rtmp_mp4_start_box(b, "pssh");
 
@@ -547,7 +551,7 @@ ngx_rtmp_mp4_write_pssh(ngx_buf_t *b, u_char *kid)
     ngx_rtmp_mp4_field_32(b, 0x01000000);
 
     /* system ID : org.w3.clearkey */
-    ngx_rtmp_mp4_data(b, NGX_RTMP_CENC_CK_SID, NGX_RTMP_CENC_KEY_SIZE);
+    ngx_rtmp_mp4_data(b, ck_sid, NGX_RTMP_CENC_KEY_SIZE);
 
     /* kid count */
     ngx_rtmp_mp4_field_32(b, 1);
@@ -1205,7 +1209,7 @@ ngx_rtmp_mp4_write_moov(ngx_rtmp_session_t *s, ngx_buf_t *b,
 
     if (ttype == NGX_RTMP_MP4_EVIDEO_TRACK ||
         ttype == NGX_RTMP_MP4_EAUDIO_TRACK) {
-        ngx_rtmp_mp4_write_pssh(b, kid);
+        ngx_rtmp_mp4_write_pssh_ck(b, kid);
     }
 
     ngx_rtmp_mp4_update_box_size(b, pos);

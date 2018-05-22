@@ -23,12 +23,6 @@
     "  <Period start=\"PT0S\" id=\"dash\">\n"
 
 
-#define NGX_RTMP_DASH_INBAND_EVENT                                             \
-    "    <InbandEventStream\n"                                                 \
-    "        schemeIdUri=\"urn:scte:scte35:2013:xml\"\n"                       \
-    "        value=\"1\" />\n"
-
-
 #define NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_VIDEO                             \
     "    <AdaptationSet\n"                                                     \
     "        id=\"1\"\n"                                                       \
@@ -40,11 +34,19 @@
     "        par=\"%ui:%ui\">\n"
 
 
+#define NGX_RTMP_DASH_INBAND_EVENT                                             \
+    "      <InbandEventStream\n"                                               \
+    "          schemeIdUri=\"urn:scte:scte35:2013:xml\"\n"                     \
+    "          value=\"1\" />\n"
+
+
 #define NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_CENC                         \
     "      <ContentProtection\n"                                               \
-    "        cenc:default_KID=\"43215678-1234-1234-1234-123412341234\"\n"      \
-    "        schemeIdUri=\"urn:mpeg:dash:mp4protection:2011\"\n"               \
-    "        value=\"cenc\"/>"
+    "          cenc:default_KID=\""                                            \
+                 "%02xd%02xd%02xd%02xd-%02xd%02xd-%02xd%02xd-"                 \
+                 "%02xd%02xd-%02xd%02xd%02xd%02xd%02xd%02xd\"\n"               \
+    "          schemeIdUri=\"urn:mpeg:dash:mp4protection:2011\"\n"             \
+    "          value=\"cenc\"/>\n"
 
 
 #define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO                            \

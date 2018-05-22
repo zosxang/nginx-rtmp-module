@@ -749,6 +749,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     static u_char              publish_time[NGX_RTMP_DASH_GMT_LENGTH];
     static u_char              buffer_depth[sizeof("P00Y00M00DT00H00M00.000S")];
     static u_char              frame_rate[(NGX_INT_T_LEN * 2) + 2];
+    static u_char              kid[NGX_RTMP_CENC_KEY_SIZE];
 
     dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
@@ -760,6 +761,14 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
 
     if (ctx->id == 0) {
         ngx_rtmp_dash_write_init_segments(s);
+    }
+
+    if (dacf->cenc) {
+        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, kid) == NGX_ERROR) {
+            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
+                          "dash: error cenc kid is invalid");
+            return NGX_ERROR;
+        }
     }
 
     fd = ngx_open_file(ctx->playlist_bak.data, NGX_FILE_WRONLY,
@@ -919,7 +928,14 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
             case NGX_RTMP_DASH_AD_MARKERS_ON_CUEPOINT_SCTE35:
                 p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
         }
-        
+
+        if (dacf->cenc) {
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_CENC,
+                kid[0], kid[1], kid[2], kid[3],
+                kid[4], kid[5], kid[6], kid[7],
+                kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+        }
+   
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
                          &ctx->name,
                          codec_ctx->avc_profile,
@@ -948,6 +964,13 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
 
     if (ctx->has_audio) {
         p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO);
+
+        if (dacf->cenc) {
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_CENC,
+                kid[0], kid[1], kid[2], kid[3],
+                kid[4], kid[5], kid[6], kid[7],
+                kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+        }
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,
                          &ctx->name,
