@@ -102,7 +102,11 @@ ngx_rtmp_cenc_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
     while (left > 0) {
 
         //debug_counter(s, counter, key, left);
-        EVP_EncryptUpdate(cipher, buf, &w, counter, AES_BLOCK_SIZE);
+        if (EVP_EncryptUpdate(cipher, buf, &w, counter, AES_BLOCK_SIZE) != 1) {
+            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
+                          "dash rtmp_cenc_encrypt: evp_encrypt_update failed");
+            return NGX_ERROR;
+        }
 
         len = (left < AES_BLOCK_SIZE) ? left : AES_BLOCK_SIZE;
         for (j = 0; j < len; j++)

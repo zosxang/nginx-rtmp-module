@@ -7,6 +7,7 @@
     "<MPD\n"                                                                   \
     "    type=\"dynamic\"\n"                                                   \
     "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\"\n"                            \
+    "    xmlns:cenc=\"urn:mpeg:cenc:2013\"\n"                                  \
     "    availabilityStartTime=\"%s\"\n"                                       \
     "    publishTime=\"%s\"\n"                                                 \
     "    minimumUpdatePeriod=\"PT%ui.%03uiS\"\n"                               \
