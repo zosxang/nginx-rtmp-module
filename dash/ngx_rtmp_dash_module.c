@@ -760,6 +760,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     }
 
     if (ctx->id == 0) {
+        /* XXX read once the kid and pass it to write_init */
         ngx_rtmp_dash_write_init_segments(s);
     }
 
@@ -934,6 +935,8 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                 kid[0], kid[1], kid[2], kid[3],
                 kid[4], kid[5], kid[6], kid[7],
                 kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
+                "AAAANHBzc2gBAAAAEHfv7MCyTQKs4zweUuL7SwAAAAHxDfEN8Q3xDfEN8Q3xDfENAAAAAA==");
         }
    
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
@@ -970,6 +973,8 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                 kid[0], kid[1], kid[2], kid[3],
                 kid[4], kid[5], kid[6], kid[7],
                 kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
+                "AAAANHBzc2gBAAAAEHfv7MCyTQKs4zweUuL7SwAAAAHxDfEN8Q3xDfEN8Q3xDfENAAAAAA==");
         }
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,

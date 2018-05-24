@@ -50,6 +50,14 @@
     "          value=\"cenc\"/>\n"
 
 
+#define NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC                    \
+    "      <ContentProtection\n"                                               \
+    "          schemeIdUri=\""                                                 \
+                 "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b\">\n"          \
+    "          <cenc:pssh>%s</cenc:pssh>\n"                                    \
+    "      </ContentProtection>\n"
+
+
 #define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO                            \
     "      <Representation\n"                                                  \
     "          id=\"%V_H264\"\n"                                               \

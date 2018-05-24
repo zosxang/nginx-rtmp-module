@@ -77,7 +77,7 @@ ngx_rtmp_cenc_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
 {
     /* aes-ctr implementation */
 
-    EVP_CIPHER_CTX* cipher;
+    EVP_CIPHER_CTX* ctx;
     size_t          j, len, left = data_len;
     int             i, w;
     uint8_t        *pos = data;
@@ -86,14 +86,14 @@ ngx_rtmp_cenc_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
     ngx_memset(counter + NGX_RTMP_CENC_IV_SIZE, 0, NGX_RTMP_CENC_IV_SIZE);
     ngx_memcpy(counter, iv, NGX_RTMP_CENC_IV_SIZE);
 
-    cipher = EVP_CIPHER_CTX_new();
-    if (cipher == NULL) {
+    ctx = EVP_CIPHER_CTX_new();
+    if (ctx == NULL) {
         ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                       "dash rtmp_cenc_encrypt: evp_cipher_ctx failed");
         return NGX_ERROR;
     }
 
-    if (EVP_EncryptInit_ex(cipher, EVP_aes_128_ecb(), NULL, key, NULL) != 1) {
+    if (EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, NULL) != 1) {
         ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                       "dash rtmp_cenc_encrypt: evp_encrypt_init failed");
         return NGX_ERROR;
@@ -102,7 +102,7 @@ ngx_rtmp_cenc_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
     while (left > 0) {
 
         //debug_counter(s, counter, key, left);
-        if (EVP_EncryptUpdate(cipher, buf, &w, counter, AES_BLOCK_SIZE) != 1) {
+        if (EVP_EncryptUpdate(ctx, buf, &w, counter, AES_BLOCK_SIZE) != 1) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                           "dash rtmp_cenc_encrypt: evp_encrypt_update failed");
             return NGX_ERROR;
@@ -121,7 +121,7 @@ ngx_rtmp_cenc_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
         }
     }
 
-    EVP_CIPHER_CTX_free(cipher);
+    EVP_CIPHER_CTX_free(ctx);
 
     return NGX_OK;
 }

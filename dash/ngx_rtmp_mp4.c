@@ -1419,7 +1419,7 @@ ngx_rtmp_mp4_write_traf(ngx_buf_t *b, uint32_t earliest_pres_time,
 
     if (is_protected) {
         ngx_rtmp_mp4_write_saiz(b, sample_count);
-        ngx_rtmp_mp4_write_saio(b, pos);
+        ngx_rtmp_mp4_write_saio(b, moof_pos);
         ngx_rtmp_mp4_write_senc(b, sample_count, samples);
     }
 
