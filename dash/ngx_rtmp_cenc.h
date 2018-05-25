@@ -14,7 +14,7 @@ void
 ngx_rtmp_cenc_increment_iv(u_char* iv);
 
 ngx_int_t
-ngx_rtmp_cenc_encrypt(ngx_rtmp_session_t *s,
+ngx_rtmp_cenc_encrypt_full_sample(ngx_rtmp_session_t *s,
     uint8_t *key, uint8_t *iv, uint8_t *data, size_t data_len);
 
 #endif /* _NGX_RTMP_CENC_H_INCLUDED_ */
