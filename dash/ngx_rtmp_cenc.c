@@ -72,7 +72,7 @@ ngx_rtmp_cenc_increment_iv(u_char* iv)
 
 
 ngx_int_t
-ngx_rtmp_cenc_encrypt_full_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
+ngx_rtmp_cenc_aes_ctr_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
     uint8_t *data, size_t data_len)
 {
     /* aes-ctr implementation */
@@ -127,3 +127,33 @@ ngx_rtmp_cenc_encrypt_full_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *
 }
  
 
+ngx_int_t
+ngx_rtmp_cenc_encrypt_full_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
+    uint8_t *data, size_t data_len)
+{
+    return ngx_rtmp_cenc_aes_ctr_encrypt(s, key, iv, data, data_len);
+}
+
+
+ngx_int_t
+ngx_rtmp_cenc_encrypt_sub_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
+    uint8_t *data, size_t data_len, size_t *clear_data_len)
+{
+    size_t crypted_data_len;
+
+    /* small sample leave it in clear */
+    if (data_len <= NGX_RTMP_CENC_MIN_CLEAR) {
+        *clear_data_len = data_len;
+        return NGX_OK;
+    }
+
+    /* skip sufficient amount of data to leave nalu header/infos
+     * in clear to conform to the norm */
+    crypted_data_len = 
+        AES_BLOCK_SIZE * ((data_len - NGX_RTMP_CENC_MIN_CLEAR) / AES_BLOCK_SIZE);
+    *clear_data_len = data_len - crypted_data_len;
+    
+    data += *clear_data_len;
+    return ngx_rtmp_cenc_aes_ctr_encrypt(s, key, iv, data, crypted_data_len);
+
+}

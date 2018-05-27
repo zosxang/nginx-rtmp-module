@@ -1834,7 +1834,7 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
     ngx_rtmp_dash_track_t *t, ngx_int_t key, uint32_t timestamp, uint32_t delay)
 {
     u_char                    *p;
-    size_t                     size, bsize;
+    size_t                     size, bsize, csize;
     ngx_rtmp_mp4_sample_t     *smpl;
 
     static u_char              buffer[NGX_RTMP_DASH_BUFSIZE];
@@ -1868,10 +1868,10 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
 
         if (t->is_protected) {
             if (t->type == 'v') {
-                ngx_rtmp_cenc_encrypt_full_sample(s, t->key, t->iv, buffer, size); 
-                ngx_log_debug3(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
-                    "dash: cenc crypt video sample: count=%ui, key=%ui, size=%ui",
-                     t->sample_count, key, size);
+                ngx_rtmp_cenc_encrypt_sub_sample(s, t->key, t->iv, buffer, size, &csize); 
+                ngx_log_debug4(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+                    "dash: cenc crypt video sample: count=%ui, key=%ui, size=%ui, csize=%ui",
+                     t->sample_count, key, size, csize);
             } else {
                 ngx_rtmp_cenc_encrypt_full_sample(s, t->key, t->iv, buffer, size); 
                 ngx_log_debug3(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,

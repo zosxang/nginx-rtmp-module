@@ -1,9 +1,25 @@
 - need doc
 - need re-upstream
 - test common encryption code
- - allow writing in //
- - correct pssh in manifest
- - add pssh / cenc in variant mpd
+ - refacto code for init / kid
+ - correct pssh in manifest // OK
+ - add pssh / cenc in variant mpd // OK
+ - add real base64 encrypt pssh data
  - add support for sub sample encryption 
  - add sig for wdv ?
 - rewritte the variant code for dash, using memory ?
+
+MIN_CLEAR_BYTES  = 48
+
+if (size <= MIN_CLEAR_BYTES) {
+  clear_size = size
+  encrypted_size = 0
+  return
+}
+
+encrypted_size =  16 * ceil ((size - MIN_CLEAR_BYTES) / 16 )
+
+4444 
+4384
+60
+
