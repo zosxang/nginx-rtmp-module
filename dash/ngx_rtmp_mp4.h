@@ -18,6 +18,7 @@
 
 typedef struct {
     uint32_t        size;
+    uint32_t        clear_size;
     uint32_t        duration;
     uint32_t        delay;
     uint32_t        timestamp;
@@ -46,7 +47,7 @@ ngx_int_t ngx_rtmp_mp4_write_styp(ngx_buf_t *b);
 ngx_int_t ngx_rtmp_mp4_write_moov(ngx_rtmp_session_t *s, ngx_buf_t *b,
     ngx_rtmp_mp4_track_type_t ttype, u_char *kid);
 ngx_int_t ngx_rtmp_mp4_write_moof(ngx_buf_t *b, uint32_t earliest_pres_time,
-    uint32_t sample_count, ngx_rtmp_mp4_sample_t *samples,
+    char type, uint32_t sample_count, ngx_rtmp_mp4_sample_t *samples,
     ngx_uint_t sample_mask, uint32_t index, ngx_flag_t is_protected);
 ngx_int_t ngx_rtmp_mp4_write_sidx(ngx_buf_t *b,
     ngx_uint_t reference_size, uint32_t earliest_pres_time,

@@ -1255,9 +1255,9 @@ ngx_rtmp_mp4_write_tfdt(ngx_buf_t *b, uint32_t earliest_pres_time)
 
 
 static ngx_int_t
-ngx_rtmp_mp4_write_trun(ngx_buf_t *b, uint32_t sample_count,
-    ngx_rtmp_mp4_sample_t *samples, ngx_uint_t sample_mask, 
-    u_char *moof_pos, ngx_flag_t is_protected)
+ngx_rtmp_mp4_write_trun(ngx_buf_t *b, char type,
+    uint32_t sample_count, ngx_rtmp_mp4_sample_t *samples,
+    ngx_uint_t sample_mask, u_char *moof_pos, ngx_flag_t is_protected)
 {
     u_char    *pos;
     uint32_t   i, offset, nitems, flags;
@@ -1291,11 +1291,15 @@ ngx_rtmp_mp4_write_trun(ngx_buf_t *b, uint32_t sample_count,
 
     if (is_protected) {
         /* if cenc is enabled we neeed to add 
-         * saiz(17) saio(20) senc(16 + sc*8) 
-         * to the data offset */
+         * saiz saiz senc size to the data offset */
         offset = (pos - moof_pos) + 20 + (sample_count * nitems * 4);
-        offset += 17 + 20 + 16 + (sample_count * NGX_RTMP_CENC_IV_SIZE) + 8;
-
+        if (type == 'v') {
+            /* video use sub sample senc */
+            offset += 17 + 20 + 16 + (sample_count * (NGX_RTMP_CENC_IV_SIZE + 8)) + 8;
+        } else {
+            /* audio use full sample senc */
+            offset += 17 + 20 + 16 + (sample_count * NGX_RTMP_CENC_IV_SIZE) + 8;
+        }
     } else {
         offset = (pos - moof_pos) + 20 + (sample_count * nitems * 4) + 8;
     }
@@ -1376,8 +1380,8 @@ ngx_rtmp_mp4_write_saio(ngx_buf_t *b, u_char *moof_pos)
 
 
 static ngx_int_t
-ngx_rtmp_mp4_write_senc(ngx_buf_t *b, uint32_t sample_count,
-    ngx_rtmp_mp4_sample_t *samples)
+ngx_rtmp_mp4_write_senc(ngx_buf_t *b, char type,
+    uint32_t sample_count, ngx_rtmp_mp4_sample_t *samples)
 {
     u_char    *pos;
     uint32_t   i;
@@ -1385,7 +1389,13 @@ ngx_rtmp_mp4_write_senc(ngx_buf_t *b, uint32_t sample_count,
     pos = ngx_rtmp_mp4_start_box(b, "senc");
 
     /* version & flag */
-    ngx_rtmp_mp4_field_32(b, 0);
+    if (type == 'v') {
+        /* video use sub_sample flag 0x02 */
+        ngx_rtmp_mp4_field_32(b, 0x02);
+    } else {
+        /* audio use full_sample flag 0x00 */
+        ngx_rtmp_mp4_field_32(b, 0);
+    }
 
     /* sample count */
     ngx_rtmp_mp4_field_32(b, sample_count);
@@ -1395,6 +1405,19 @@ ngx_rtmp_mp4_write_senc(ngx_buf_t *b, uint32_t sample_count,
         /* IV per sample */
         ngx_rtmp_mp4_data(b, samples->iv, NGX_RTMP_CENC_IV_SIZE);
 
+        /* subsample informations */
+        if (type == 'v') {
+
+            /* sub sample count */
+            ngx_rtmp_mp4_field_16(b, 1);
+
+            /* sub sample clear data size */
+            ngx_rtmp_mp4_field_16(b, samples->clear_size);
+
+            /* sub sample protected data size */
+            ngx_rtmp_mp4_field_32(b, samples->size - samples->clear_size);
+
+        }
     }
 
     ngx_rtmp_mp4_update_box_size(b, pos);
@@ -1405,7 +1428,7 @@ ngx_rtmp_mp4_write_senc(ngx_buf_t *b, uint32_t sample_count,
 
 static ngx_int_t
 ngx_rtmp_mp4_write_traf(ngx_buf_t *b, uint32_t earliest_pres_time,
-    uint32_t sample_count, ngx_rtmp_mp4_sample_t *samples,
+    char type, uint32_t sample_count, ngx_rtmp_mp4_sample_t *samples,
     ngx_uint_t sample_mask, u_char *moof_pos, ngx_flag_t is_protected)
 {
     u_char  *pos;
@@ -1414,13 +1437,13 @@ ngx_rtmp_mp4_write_traf(ngx_buf_t *b, uint32_t earliest_pres_time,
 
     ngx_rtmp_mp4_write_tfhd(b);
     ngx_rtmp_mp4_write_tfdt(b, earliest_pres_time);
-    ngx_rtmp_mp4_write_trun(b, sample_count, samples, sample_mask, 
+    ngx_rtmp_mp4_write_trun(b, type, sample_count, samples, sample_mask, 
         moof_pos, is_protected);
 
     if (is_protected) {
         ngx_rtmp_mp4_write_saiz(b, sample_count);
         ngx_rtmp_mp4_write_saio(b, moof_pos);
-        ngx_rtmp_mp4_write_senc(b, sample_count, samples);
+        ngx_rtmp_mp4_write_senc(b, type, sample_count, samples);
     }
 
     ngx_rtmp_mp4_update_box_size(b, pos);
@@ -1500,7 +1523,7 @@ ngx_rtmp_mp4_write_sidx(ngx_buf_t *b, ngx_uint_t reference_size,
 
 ngx_int_t
 ngx_rtmp_mp4_write_moof(ngx_buf_t *b, uint32_t earliest_pres_time,
-    uint32_t sample_count, ngx_rtmp_mp4_sample_t *samples,
+    char type, uint32_t sample_count, ngx_rtmp_mp4_sample_t *samples,
     ngx_uint_t sample_mask, uint32_t index, ngx_flag_t is_protected)
 {
     u_char  *pos;
@@ -1508,8 +1531,8 @@ ngx_rtmp_mp4_write_moof(ngx_buf_t *b, uint32_t earliest_pres_time,
     pos = ngx_rtmp_mp4_start_box(b, "moof");
 
     ngx_rtmp_mp4_write_mfhd(b, index);
-    ngx_rtmp_mp4_write_traf(b, earliest_pres_time, sample_count, samples,
-                            sample_mask, pos, is_protected);
+    ngx_rtmp_mp4_write_traf(b, earliest_pres_time, type, sample_count,
+        samples, sample_mask, pos, is_protected);
 
     ngx_rtmp_mp4_update_box_size(b, pos);
 

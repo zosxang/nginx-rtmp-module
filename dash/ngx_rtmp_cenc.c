@@ -150,7 +150,7 @@ ngx_rtmp_cenc_encrypt_sub_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *i
     /* skip sufficient amount of data to leave nalu header/infos
      * in clear to conform to the norm */
     crypted_data_len = 
-        AES_BLOCK_SIZE * ((data_len - NGX_RTMP_CENC_MIN_CLEAR) / AES_BLOCK_SIZE);
+        ((data_len - NGX_RTMP_CENC_MIN_CLEAR) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
     *clear_data_len = data_len - crypted_data_len;
     
     data += *clear_data_len;

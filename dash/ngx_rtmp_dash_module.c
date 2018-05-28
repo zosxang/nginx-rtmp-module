@@ -1236,7 +1236,7 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
     pos = b.last;
     b.last += 44; /* leave room for sidx */
 
-    ngx_rtmp_mp4_write_moof(&b, t->earliest_pres_time, t->sample_count,
+    ngx_rtmp_mp4_write_moof(&b, t->earliest_pres_time, t->type, t->sample_count,
                             t->samples, t->sample_mask, t->id, t->is_protected);
     pos1 = b.last;
     b.last = pos;
@@ -1898,6 +1898,9 @@ ngx_rtmp_dash_append(ngx_rtmp_session_t *s, ngx_chain_t *in,
             smpl->is_protected = 1;
             ngx_memcpy(smpl->iv, t->iv, NGX_RTMP_CENC_IV_SIZE);
             ngx_rtmp_cenc_increment_iv(t->iv);
+            if (t->type == 'v') {
+		    smpl->clear_size = (uint32_t) csize;
+            }
         }
 
         if (t->sample_count > 0) {
