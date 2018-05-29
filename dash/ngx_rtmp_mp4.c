@@ -1334,7 +1334,7 @@ ngx_rtmp_mp4_write_trun(ngx_buf_t *b, char type,
 
 
 static ngx_int_t
-ngx_rtmp_mp4_write_saiz(ngx_buf_t *b, uint32_t sample_count)
+ngx_rtmp_mp4_write_saiz(ngx_buf_t *b, char type, uint32_t sample_count)
 {
     u_char    *pos;
 
@@ -1344,7 +1344,13 @@ ngx_rtmp_mp4_write_saiz(ngx_buf_t *b, uint32_t sample_count)
     ngx_rtmp_mp4_field_32(b, 0);
 
     /* defaut sample info size */
-    ngx_rtmp_mp4_field_8(b, 8);
+    if (type == 'v') {
+        /* sub sample */
+        ngx_rtmp_mp4_field_8(b, NGX_RTMP_CENC_IV_SIZE + 8);
+    } else {
+        /* full sample */
+        ngx_rtmp_mp4_field_8(b, NGX_RTMP_CENC_IV_SIZE);
+    }
 
     /* sample count */
     ngx_rtmp_mp4_field_32(b, sample_count);
@@ -1441,7 +1447,7 @@ ngx_rtmp_mp4_write_traf(ngx_buf_t *b, uint32_t earliest_pres_time,
         moof_pos, is_protected);
 
     if (is_protected) {
-        ngx_rtmp_mp4_write_saiz(b, sample_count);
+        ngx_rtmp_mp4_write_saiz(b, type, sample_count);
         ngx_rtmp_mp4_write_saio(b, moof_pos);
         ngx_rtmp_mp4_write_senc(b, type, sample_count, samples);
     }
