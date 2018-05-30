@@ -23,7 +23,8 @@ static ngx_int_t ngx_rtmp_dash_postconfiguration(ngx_conf_t *cf);
 static void * ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf);
 static char * ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf,
        void *parent, void *child);
-static ngx_int_t ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s);
+static ngx_int_t ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s,
+       u_char *kid);
 static ngx_int_t ngx_rtmp_dash_ensure_directory(ngx_rtmp_session_t *s);
 
 
@@ -590,25 +591,6 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
 
         for (j = 0; j < dacf->variant->nelts; j++, var++) {
 
-            p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VARIANT_VIDEO,
-                             &ctx->varname, &var->suffix,
-                             codec_ctx->avc_profile,
-                             codec_ctx->avc_compat,
-                             codec_ctx->avc_level);
-
-            arg = var->args.elts;
-            for (k = 0; k < var->args.nelts && k < 3 ; k++, arg++) {
-                p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG, arg);
-            }
-
-            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG_FOOTER);
-
-            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_SEGMENTTPL_VARIANT_VIDEO,
-                             &ctx->varname, &var->suffix, sep,
-                             &ctx->varname, &var->suffix, sep);
-
-            n = ngx_write_fd(fd, buffer, p - buffer);
-
             /* read segments file */
             if (dacf->nested) {
                 *ngx_sprintf(seg_path, "%V/%V%V/index.seg",
@@ -628,6 +610,25 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                               "dash: open failed: segments '%s'", seg_path);
                 continue;
             } 
+
+            p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VARIANT_VIDEO,
+                             &ctx->varname, &var->suffix,
+                             codec_ctx->avc_profile,
+                             codec_ctx->avc_compat,
+                             codec_ctx->avc_level);
+
+            arg = var->args.elts;
+            for (k = 0; k < var->args.nelts && k < 3 ; k++, arg++) {
+                p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG, arg);
+            }
+
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_VARIANT_ARG_FOOTER);
+
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_SEGMENTTPL_VARIANT_VIDEO,
+                             &ctx->varname, &var->suffix, sep,
+                             &ctx->varname, &var->suffix, sep);
+
+            n = ngx_write_fd(fd, buffer, p - buffer);
 
             while ((n = ngx_read_fd(fds, buffer, sizeof(buffer)))) {
                 n = ngx_write_fd(fd, buffer, n);
@@ -759,10 +760,6 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
         return NGX_ERROR;
     }
 
-    if (ctx->id == 0) {
-        /* XXX read once the kid and pass it to write_init */
-        ngx_rtmp_dash_write_init_segments(s);
-    }
 
     if (dacf->cenc) {
         if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, kid) == NGX_ERROR) {
@@ -770,6 +767,10 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                           "dash: error cenc kid is invalid");
             return NGX_ERROR;
         }
+    }
+
+    if (ctx->id == 0) {
+        ngx_rtmp_dash_write_init_segments(s, kid);
     }
 
     fd = ngx_open_file(ctx->playlist_bak.data, NGX_FILE_WRONLY,
@@ -1068,7 +1069,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
 
 
 static ngx_int_t
-ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s)
+ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s, u_char *kid)
 {
     ngx_fd_t                   fd;
     ngx_int_t                  rc;
@@ -1078,7 +1079,6 @@ ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s)
     ngx_rtmp_dash_app_conf_t  *dacf;
 
     static u_char          buffer[NGX_RTMP_DASH_BUFSIZE];
-    static u_char          kid[NGX_RTMP_CENC_KEY_SIZE];
 
     dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
@@ -1107,11 +1107,6 @@ ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s)
 
     ngx_rtmp_mp4_write_ftyp(&b);
     if (dacf->cenc) {
-        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, kid) == NGX_ERROR) {
-            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
-                          "dash: error cenc kid is invalid");
-            return NGX_ERROR;
-        }
         ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EVIDEO_TRACK, kid);
     } else {
         ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_VIDEO_TRACK, NULL);
