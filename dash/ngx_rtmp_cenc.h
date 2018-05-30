@@ -3,7 +3,7 @@
 
 #define NGX_RTMP_CENC_IV_SIZE (8)
 #define NGX_RTMP_CENC_KEY_SIZE (16)
-#define NGX_RTMP_CENC_MIN_CLEAR (400)
+#define NGX_RTMP_CENC_MIN_CLEAR (100)
 
 ngx_int_t
 ngx_rtmp_cenc_read_hex(ngx_str_t src, u_char* dst);
