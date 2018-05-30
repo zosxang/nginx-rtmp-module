@@ -411,6 +411,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     ssize_t                    n;
     ngx_fd_t                   fd, fds;
     struct tm                  tm;
+    ngx_str_t                  cenc_pssh;
     ngx_uint_t                 i, j, k, frame_rate_num, frame_rate_denom;
     ngx_uint_t                 depth_msec, depth_sec;
     ngx_uint_t                 update_period, update_period_msec;
@@ -432,6 +433,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     static u_char              buffer_depth[sizeof("P00Y00M00DT00H00M00.000S")];
     static u_char              frame_rate[(NGX_INT_T_LEN * 2) + 2];
     static u_char              seg_path[NGX_MAX_PATH + 1];
+    static u_char              kid[NGX_RTMP_CENC_KEY_SIZE];
 
     dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
@@ -439,6 +441,15 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
 
     if (dacf == NULL || ctx == NULL || codec_ctx == NULL) {
         return NGX_ERROR;
+    }
+
+    if (dacf->cenc) {
+        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, kid) == NGX_ERROR) {
+            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
+                          "dash: error cenc kid is invalid");
+            return NGX_ERROR;
+        }
+        ngx_rtmp_content_protection_pssh(s, kid, &cenc_pssh);
     }
 
     fd = ngx_open_file(ctx->var_playlist_bak.data, NGX_FILE_WRONLY,
@@ -587,6 +598,15 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                 p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
         }
 
+        if (dacf->cenc) {
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_CENC,
+                kid[0], kid[1], kid[2], kid[3],
+                kid[4], kid[5], kid[6], kid[7],
+                kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
+                             cenc_pssh.data);
+        }
+
         n = ngx_write_fd(fd, buffer, p - buffer);
 
         for (j = 0; j < dacf->variant->nelts; j++, var++) {
@@ -647,6 +667,15 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
 
     if (ctx->has_audio) {
         p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO);
+
+        if (dacf->cenc) {
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_CENC,
+                kid[0], kid[1], kid[2], kid[3],
+                kid[4], kid[5], kid[6], kid[7],
+                kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+            p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
+                             cenc_pssh.data);
+        }
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,
                          &ctx->name,
@@ -742,6 +771,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     ngx_rtmp_codec_ctx_t      *codec_ctx;
     ngx_rtmp_dash_frag_t      *f;
     ngx_rtmp_dash_app_conf_t  *dacf;
+    ngx_str_t                  cenc_pssh;
 
     ngx_rtmp_playlist_t        v;
 
@@ -760,13 +790,13 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
         return NGX_ERROR;
     }
 
-
     if (dacf->cenc) {
         if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, kid) == NGX_ERROR) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                           "dash: error cenc kid is invalid");
             return NGX_ERROR;
         }
+        ngx_rtmp_content_protection_pssh(s, kid, &cenc_pssh);
     }
 
     if (ctx->id == 0) {
@@ -937,7 +967,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                 kid[4], kid[5], kid[6], kid[7],
                 kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
-                "AAAANHBzc2gBAAAAEHfv7MCyTQKs4zweUuL7SwAAAAHxDfEN8Q3xDfEN8Q3xDfENAAAAAA==");
+                             cenc_pssh.data);
         }
    
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
@@ -975,7 +1005,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                 kid[4], kid[5], kid[6], kid[7],
                 kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
-                "AAAANHBzc2gBAAAAEHfv7MCyTQKs4zweUuL7SwAAAAHxDfEN8Q3xDfEN8Q3xDfENAAAAAA==");
+                             cenc_pssh.data);
         }
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,

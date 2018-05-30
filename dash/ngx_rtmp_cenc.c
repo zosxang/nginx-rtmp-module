@@ -141,7 +141,7 @@ ngx_rtmp_cenc_encrypt_sub_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *i
 {
     size_t crypted_data_len;
 
-    /* small sample leave it in clear */
+    /* small sample : leave it in clear */
     if (data_len <= NGX_RTMP_CENC_MIN_CLEAR) {
         *clear_data_len = data_len;
         return NGX_OK;
@@ -157,3 +157,39 @@ ngx_rtmp_cenc_encrypt_sub_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *i
     return ngx_rtmp_cenc_aes_ctr_encrypt(s, key, iv, data, crypted_data_len);
 
 }
+
+
+ngx_int_t
+ngx_rtmp_content_protection_pssh(ngx_rtmp_session_t *s, u_char* kid, 
+    ngx_str_t *dest_pssh)
+{
+    ngx_str_t  src_pssh;
+
+    u_char pssh[] = {
+        0x00, 0x00, 0x00, 0x34, 0x70, 0x73, 0x73, 0x68, // pssh box header
+        0x01, 0x00, 0x00, 0x00,                         // header
+        0x10, 0x77, 0xef, 0xec, 0xc0, 0xb2, 0x4d, 0x02, // systemID 
+        0xac, 0xe3, 0x3c, 0x1e, 0x52, 0xe2, 0xfb, 0x4b,
+        0x00, 0x00, 0x00, 0x01,                         // kid count
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // kid
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00                          // data size
+    };
+
+    ngx_memcpy(pssh+32, kid, NGX_RTMP_CENC_KEY_SIZE);
+
+    src_pssh.len = sizeof(pssh);
+    src_pssh.data = pssh;
+
+    dest_pssh->len = ngx_base64_encoded_length(src_pssh.len);
+    dest_pssh->data = ngx_palloc(s->connection->pool, dest_pssh->len + 1); 
+    
+    ngx_encode_base64(dest_pssh, &src_pssh);
+    dest_pssh->data[dest_pssh->len] = '\0';
+
+    ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+        "dash cenc pssh: %ui %s ", dest_pssh->len, dest_pssh->data);
+
+    return NGX_OK;
+}
+

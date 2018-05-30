@@ -1,10 +1,10 @@
 - need doc
 - need re-upstream
 - test common encryption code
- - refacto code for init / kid
+ - refacto code for init / kid //OK
  - correct pssh in manifest // OK
  - add pssh / cenc in variant mpd // OK
- - add real base64 encrypt pssh data
+ - add real base64 encrypt pssh data // OK need refacto
  - add support for sub sample encryption //OK
  - add sig for wdv ?
 - rewritte the variant code for dash, using memory ?
