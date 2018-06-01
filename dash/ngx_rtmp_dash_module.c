@@ -141,6 +141,7 @@ typedef struct {
     ngx_flag_t                          cenc;
     ngx_str_t                           cenc_key;
     ngx_str_t                           cenc_kid;
+    ngx_flag_t                          wdv;
     ngx_flag_t                          repetition;
     ngx_uint_t                          clock_compensation;     // Try to compensate clock drift
                                                                 //  between client and server (on client side)
@@ -226,6 +227,13 @@ static ngx_command_t ngx_rtmp_dash_commands[] = {
       ngx_conf_set_str_slot,
       NGX_RTMP_APP_CONF_OFFSET,
       offsetof(ngx_rtmp_dash_app_conf_t, cenc_kid),
+      NULL },
+
+    { ngx_string("dash_wdv"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_dash_app_conf_t, wdv),
       NULL },
 
     { ngx_string("dash_clock_compensation"),
@@ -603,9 +611,16 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                 kid[0], kid[1], kid[2], kid[3],
                 kid[4], kid[5], kid[6], kid[7],
                 kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
                              cenc_pssh.data);
+
+            if (dacf->wdv) {
+                p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_WDV,
+                "xxx");
+            }
         }
+        
 
         n = ngx_write_fd(fd, buffer, p - buffer);
 
@@ -673,8 +688,14 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                 kid[0], kid[1], kid[2], kid[3],
                 kid[4], kid[5], kid[6], kid[7],
                 kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
                              cenc_pssh.data);
+
+            if (dacf->wdv) {
+                p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_WDV,
+                "xxx");
+            }
         }
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,
@@ -966,8 +987,14 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                 kid[0], kid[1], kid[2], kid[3],
                 kid[4], kid[5], kid[6], kid[7],
                 kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
                              cenc_pssh.data);
+
+            if (dacf->wdv) {
+                p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_WDV,
+                "xxx");
+            }
         }
    
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
@@ -1004,8 +1031,14 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                 kid[0], kid[1], kid[2], kid[3],
                 kid[4], kid[5], kid[6], kid[7],
                 kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
+
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
                              cenc_pssh.data);
+
+            if (dacf->wdv) {
+                p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_WDV,
+                "xxx");
+            }
         }
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,
@@ -2645,6 +2678,7 @@ ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf)
     conf->nested = NGX_CONF_UNSET;
     conf->repetition = NGX_CONF_UNSET;
     conf->cenc = NGX_CONF_UNSET;
+    conf->wdv = NGX_CONF_UNSET;
     conf->clock_compensation = NGX_CONF_UNSET;
     conf->ad_markers = NGX_CONF_UNSET;
 
@@ -2668,6 +2702,7 @@ ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_value(conf->cenc, prev->cenc, 0);
     ngx_conf_merge_str_value(conf->cenc_key, prev->cenc_key, "");
     ngx_conf_merge_str_value(conf->cenc_kid, prev->cenc_kid, "");
+    ngx_conf_merge_value(conf->wdv, prev->wdv, 0);
     ngx_conf_merge_uint_value(conf->clock_compensation, prev->clock_compensation,
                               NGX_RTMP_DASH_CLOCK_COMPENSATION_OFF);
     ngx_conf_merge_str_value(conf->clock_helper_uri, prev->clock_helper_uri, "");

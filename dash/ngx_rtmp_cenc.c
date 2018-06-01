@@ -163,6 +163,7 @@ ngx_int_t
 ngx_rtmp_content_protection_pssh(ngx_rtmp_session_t *s, u_char* kid, 
     ngx_str_t *dest_pssh)
 {
+    // static alloc ?
     ngx_str_t  src_pssh;
 
     u_char pssh[] = {
@@ -186,9 +187,6 @@ ngx_rtmp_content_protection_pssh(ngx_rtmp_session_t *s, u_char* kid,
     
     ngx_encode_base64(dest_pssh, &src_pssh);
     dest_pssh->data[dest_pssh->len] = '\0';
-
-    ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
-        "dash cenc pssh: %ui %s ", dest_pssh->len, dest_pssh->data);
 
     return NGX_OK;
 }

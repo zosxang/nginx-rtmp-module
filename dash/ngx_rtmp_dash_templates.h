@@ -58,6 +58,14 @@
     "      </ContentProtection>\n"
 
 
+#define NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_WDV                     \
+    "      <ContentProtection\n"                                               \
+    "          schemeIdUri=\""                                                 \
+                 "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\">\n"          \
+    "          <cenc:pssh>%s</cenc:pssh>\n"                                    \
+    "      </ContentProtection>\n"
+
+
 #define NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO                            \
     "      <Representation\n"                                                  \
     "          id=\"%V_H264\"\n"                                               \
