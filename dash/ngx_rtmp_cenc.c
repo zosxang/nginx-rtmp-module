@@ -36,9 +36,9 @@ ngx_rtmp_cenc_read_hex(ngx_str_t src, u_char* dst)
     }
 
     for (i = 0; i < NGX_RTMP_CENC_KEY_SIZE; i++) {
-       l = tolower(src.data[i*2]);       
+       l = ngx_tolower(src.data[i*2]);       
        l = l >= 'a' ? l - 'a' + 10 : l - '0'; 
-       h = tolower(src.data[i*2+1]);       
+       h = ngx_tolower(src.data[i*2+1]);       
        h = h >= 'a' ? h - 'a' + 10 : h - '0'; 
        dst[i] = (l << 4) | h; 
     }
