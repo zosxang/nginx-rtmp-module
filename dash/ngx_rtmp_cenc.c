@@ -37,8 +37,8 @@ ngx_rtmp_cenc_read_hex(ngx_str_t src, u_char* dst)
 
     for (i = 0; i < NGX_RTMP_CENC_KEY_SIZE; i++) {
        l = tolower(src.data[i*2]);       
-       h = tolower(src.data[i*2+1]);       
        l = l >= 'a' ? l - 'a' + 10 : l - '0'; 
+       h = tolower(src.data[i*2+1]);       
        h = h >= 'a' ? h - 'a' + 10 : h - '0'; 
        dst[i] = (l << 4) | h; 
     }
@@ -101,7 +101,6 @@ ngx_rtmp_cenc_aes_ctr_encrypt(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *iv,
 
     while (left > 0) {
 
-        //debug_counter(s, counter, key, left);
         if (EVP_EncryptUpdate(ctx, buf, &w, counter, AES_BLOCK_SIZE) != 1) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                           "dash rtmp_cenc_encrypt: evp_encrypt_update failed");
@@ -163,7 +162,6 @@ ngx_int_t
 ngx_rtmp_content_protection_pssh(ngx_rtmp_session_t *s, u_char* kid, 
     ngx_str_t *dest_pssh)
 {
-    // static alloc ?
     ngx_str_t  src_pssh;
 
     u_char pssh[] = {
