@@ -4,7 +4,7 @@
 
 - test common encryption code (OK clearkey, Widevine both on chrome/firefox!)
  - need to write some doc about cenc/drm implem
- - refacto code for writing content protection in manifest
+ - refacto code for writing content protection in manifest // SEMI OK
  - clarify the use of %V in ngx_printf 
  - refacto code for init / kid //OK
  - correct pssh in manifest // OK

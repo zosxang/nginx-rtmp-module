@@ -1,12 +1,14 @@
 # NGINX-based Media Streaming Server
 
-## nginx-rtmp-module
+## nginx-rtmp-module (dash enhanced version)
 
 Forked from https://github.com/sergey-dryabzhinsky/ which was the most up to date version.
 
  - add the possibility to have dash variant like in HLS (show below configuration, using ffmpeg to trancode in 3 variants).
    note the "max" flag which indicate which representation should have max witdh and height and so use it to create the variant manifest.
  - add the support of inband scte event, from rtmp AMF event to dash (InbandEvent in manifest and emsg box in mp4 fragment)
+ - add the support of using repetition in manifest to shorten them
+ - add the support of common-encryption; currently working DRM are ClearKey and Widevine (see specific doc Here)
 
 ```
   rtmp {
