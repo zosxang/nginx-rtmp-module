@@ -434,11 +434,11 @@ ngx_rtmp_dash_write_content_protection(ngx_rtmp_session_t *s, ngx_rtmp_dash_app_
             kid[8], kid[9], kid[10], kid[11], kid[12], kid[13], kid[14], kid[15]);
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
-            cenc_pssh.data);
+            &cenc_pssh);
 
         if (dacf->wdv) {
             p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_WDV,
-                dacf->wdv_data.data);
+                &dacf->wdv_data);
         }
     }
 

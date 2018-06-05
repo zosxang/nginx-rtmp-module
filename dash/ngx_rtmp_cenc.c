@@ -181,11 +181,9 @@ ngx_rtmp_content_protection_pssh(ngx_rtmp_session_t *s, u_char* kid,
     src_pssh.data = pssh;
 
     dest_pssh->len = ngx_base64_encoded_length(src_pssh.len);
-    dest_pssh->data = ngx_palloc(s->connection->pool, dest_pssh->len + 1); 
+    dest_pssh->data = ngx_palloc(s->connection->pool, dest_pssh->len); 
     
     ngx_encode_base64(dest_pssh, &src_pssh);
-    dest_pssh->data[dest_pssh->len] = '\0';
-    dest_pssh->len += 1;
 
     return NGX_OK;
 }

@@ -54,7 +54,7 @@
     "      <ContentProtection\n"                                               \
     "          schemeIdUri=\""                                                 \
                  "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b\">\n"          \
-    "          <cenc:pssh>%s</cenc:pssh>\n"                                    \
+    "          <cenc:pssh>%V</cenc:pssh>\n"                                    \
     "      </ContentProtection>\n"
 
 
@@ -62,7 +62,7 @@
     "      <ContentProtection\n"                                               \
     "          schemeIdUri=\""                                                 \
                  "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\">\n"          \
-    "          <cenc:pssh>%s</cenc:pssh>\n"                                    \
+    "          <cenc:pssh>%V</cenc:pssh>\n"                                    \
     "      </ContentProtection>\n"
 
 
