@@ -12,6 +12,7 @@
  - add real base64 encrypt pssh data // OK 
  - add support for sub sample encryption //OK
  - add sig for wdv //OK
+ - add struct for drm info // in progress
  - add pssh in init file for wdv 
  - add msplayready support
 

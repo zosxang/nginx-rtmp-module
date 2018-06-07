@@ -159,7 +159,7 @@ ngx_rtmp_cenc_encrypt_sub_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *i
 
 
 ngx_int_t
-ngx_rtmp_content_protection_pssh(ngx_rtmp_session_t *s, u_char* kid, 
+ngx_rtmp_cenc_content_protection_pssh(ngx_rtmp_session_t *s, u_char* kid, 
     ngx_str_t *dest_pssh)
 {
     ngx_str_t  src_pssh;

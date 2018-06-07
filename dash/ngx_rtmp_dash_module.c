@@ -24,7 +24,7 @@ static void * ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf);
 static char * ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf,
        void *parent, void *child);
 static ngx_int_t ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s,
-       u_char *kid);
+       ngx_rtmp_cenc_drm_info_t *drmi);
 static ngx_int_t ngx_rtmp_dash_ensure_directory(ngx_rtmp_session_t *s);
 
 
@@ -421,12 +421,15 @@ ngx_rtmp_dash_write_segment_timeline(ngx_rtmp_session_t *s, ngx_rtmp_dash_ctx_t 
 
 static u_char *
 ngx_rtmp_dash_write_content_protection(ngx_rtmp_session_t *s, ngx_rtmp_dash_app_conf_t *dacf,
-    u_char *kid, u_char *p, u_char *last)
+    ngx_rtmp_cenc_drm_info_t *drmi, u_char *p, u_char *last)
 {
-    ngx_str_t  cenc_pssh;
+    u_char     *kid;
+    ngx_str_t   cenc_pssh;
+
+    kid = drmi->kid; 
 
     if (dacf->cenc) {
-        ngx_rtmp_content_protection_pssh(s, kid, &cenc_pssh);
+        ngx_rtmp_cenc_content_protection_pssh(s, kid, &cenc_pssh);
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_CENC,
             kid[0], kid[1], kid[2], kid[3],
@@ -468,6 +471,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     ngx_str_t                 *arg;
 
     ngx_rtmp_playlist_t        v;
+    ngx_rtmp_cenc_drm_info_t   drmi;
 
     static u_char              buffer[NGX_RTMP_DASH_BUFSIZE];
     static u_char              available_time[NGX_RTMP_DASH_GMT_LENGTH];
@@ -475,7 +479,6 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     static u_char              buffer_depth[sizeof("P00Y00M00DT00H00M00.000S")];
     static u_char              frame_rate[(NGX_INT_T_LEN * 2) + 2];
     static u_char              seg_path[NGX_MAX_PATH + 1];
-    static u_char              kid[NGX_RTMP_CENC_KEY_SIZE];
 
     dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
@@ -486,7 +489,8 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     }
 
     if (dacf->cenc) {
-        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, kid) == NGX_ERROR) {
+        // fill drm info
+        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, drmi.kid) == NGX_ERROR) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                           "dash: error cenc kid is invalid");
             return NGX_ERROR;
@@ -639,7 +643,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
                 p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
         }
 
-        p = ngx_rtmp_dash_write_content_protection(s, dacf, kid, p, last);
+        p = ngx_rtmp_dash_write_content_protection(s, dacf, &drmi, p, last);
 
         n = ngx_write_fd(fd, buffer, p - buffer);
 
@@ -702,7 +706,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     if (ctx->has_audio) {
         p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO);
 
-        p = ngx_rtmp_dash_write_content_protection(s, dacf, kid, p, last);
+        p = ngx_rtmp_dash_write_content_protection(s, dacf, &drmi, p, last);
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,
                          &ctx->name,
@@ -800,13 +804,13 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     ngx_rtmp_dash_app_conf_t  *dacf;
 
     ngx_rtmp_playlist_t        v;
+    ngx_rtmp_cenc_drm_info_t   drmi;
 
     static u_char              buffer[NGX_RTMP_DASH_BUFSIZE];
     static u_char              available_time[NGX_RTMP_DASH_GMT_LENGTH];
     static u_char              publish_time[NGX_RTMP_DASH_GMT_LENGTH];
     static u_char              buffer_depth[sizeof("P00Y00M00DT00H00M00.000S")];
     static u_char              frame_rate[(NGX_INT_T_LEN * 2) + 2];
-    static u_char              kid[NGX_RTMP_CENC_KEY_SIZE];
 
     dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
@@ -817,7 +821,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     }
 
     if (dacf->cenc) {
-        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, kid) == NGX_ERROR) {
+        if (ngx_rtmp_cenc_read_hex(dacf->cenc_kid, drmi.kid) == NGX_ERROR) {
             ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                           "dash: error cenc kid is invalid");
             return NGX_ERROR;
@@ -825,7 +829,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     }
 
     if (ctx->id == 0) {
-        ngx_rtmp_dash_write_init_segments(s, kid);
+        ngx_rtmp_dash_write_init_segments(s, &drmi);
     }
 
     fd = ngx_open_file(ctx->playlist_bak.data, NGX_FILE_WRONLY,
@@ -986,7 +990,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
                 p = ngx_slprintf(p, last, NGX_RTMP_DASH_INBAND_EVENT);
         }
 
-        p = ngx_rtmp_dash_write_content_protection(s, dacf, kid, p, last);
+        p = ngx_rtmp_dash_write_content_protection(s, dacf, &drmi, p, last);
    
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_VIDEO,
                          &ctx->name,
@@ -1017,7 +1021,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
     if (ctx->has_audio) {
         p = ngx_slprintf(buffer, last, NGX_RTMP_DASH_MANIFEST_ADAPTATIONSET_AUDIO);
 
-        p = ngx_rtmp_dash_write_content_protection(s, dacf, kid, p, last);
+        p = ngx_rtmp_dash_write_content_protection(s, dacf, &drmi, p, last);
 
         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_REPRESENTATION_AUDIO,
                          &ctx->name,
@@ -1110,7 +1114,7 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
 
 
 static ngx_int_t
-ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s, u_char *kid)
+ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s, ngx_rtmp_cenc_drm_info_t *drmi)
 {
     ngx_fd_t                   fd;
     ngx_int_t                  rc;
@@ -1148,7 +1152,7 @@ ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s, u_char *kid)
 
     ngx_rtmp_mp4_write_ftyp(&b);
     if (dacf->cenc) {
-        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EVIDEO_TRACK, kid);
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EVIDEO_TRACK, drmi);
     } else {
         ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_VIDEO_TRACK, NULL);
     } 
@@ -1178,7 +1182,7 @@ ngx_rtmp_dash_write_init_segments(ngx_rtmp_session_t *s, u_char *kid)
 
     ngx_rtmp_mp4_write_ftyp(&b);
     if (dacf->cenc) {
-        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EAUDIO_TRACK, kid);
+        ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_EAUDIO_TRACK, drmi);
     } else {
         ngx_rtmp_mp4_write_moov(s, &b, NGX_RTMP_MP4_AUDIO_TRACK, NULL);
     } 
