@@ -437,6 +437,7 @@ ngx_rtmp_dash_write_content_protection(ngx_rtmp_session_t *s,
         k[4], k[5], k[6], k[7],
         k[8], k[9], k[10], k[11], k[12], k[13], k[14], k[15]);
 
+
     p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_CENC,
         &cenc_pssh);
 

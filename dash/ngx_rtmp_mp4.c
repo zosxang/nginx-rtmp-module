@@ -538,7 +538,7 @@ ngx_rtmp_mp4_write_schm(ngx_buf_t *b)
 
 static ngx_int_t
 ngx_rtmp_mp4_write_pssh_cenc(ngx_buf_t *b,
-    ngx_rtmp_cenc_drm_info_t *drminfo)
+    ngx_rtmp_cenc_drm_info_t *drmi)
 {
     u_char  *pos;
     u_char   sid[] = {
@@ -558,7 +558,7 @@ ngx_rtmp_mp4_write_pssh_cenc(ngx_buf_t *b,
     ngx_rtmp_mp4_field_32(b, 1);
 
     /* default KID */
-    ngx_rtmp_mp4_data(b, drminfo->kid, NGX_RTMP_CENC_KEY_SIZE);
+    ngx_rtmp_mp4_data(b, drmi->kid, NGX_RTMP_CENC_KEY_SIZE);
 
     /* data size */
     ngx_rtmp_mp4_field_32(b, 0);
@@ -571,10 +571,13 @@ ngx_rtmp_mp4_write_pssh_cenc(ngx_buf_t *b,
 
 static ngx_int_t
 ngx_rtmp_mp4_write_pssh_wdv(ngx_buf_t *b,
-    ngx_rtmp_cenc_drm_info_t *drminfo)
+    ngx_rtmp_cenc_drm_info_t *drmi)
 {
-    u_char  *pos;
-    u_char   sid[] = {
+    ngx_str_t   dest, src;
+    u_char     *pos;
+    u_char      buf[NGX_RTMP_CENC_MAX_PSSH_SIZE];
+
+    u_char      sid[] = {
         0xed, 0xef, 0x8b, 0xa9, 0x79, 0xd6, 0x4a, 0xce, 
         0xa3, 0xc8, 0x27, 0xdc, 0xd5, 0x1d, 0x21, 0xed
     };
@@ -588,8 +591,15 @@ ngx_rtmp_mp4_write_pssh_wdv(ngx_buf_t *b,
     ngx_rtmp_mp4_data(b, sid, NGX_RTMP_CENC_KEY_SIZE);
 
     /* decode base64 wdv_data */
+    dest.data = buf;
+    src.len = ngx_base64_decoded_length(drmi->wdv_data.len) - 32;
+    ngx_decode_base64(&dest, &drmi->wdv_data);
+    
     /* data size */
-    ngx_rtmp_mp4_field_32(b, 0);
+    ngx_rtmp_mp4_field_32(b, src.len);
+
+    /* data */
+    ngx_rtmp_mp4_data(b, dest.data + 32, src.len);
 
     ngx_rtmp_mp4_update_box_size(b, pos);
 
