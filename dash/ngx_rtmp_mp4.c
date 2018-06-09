@@ -584,7 +584,7 @@ ngx_rtmp_mp4_write_pssh_wdv(ngx_buf_t *b,
 
     pos = ngx_rtmp_mp4_start_box(b, "pssh");
 
-    /* version and flags */
+    /* assuming v0 pssh for widevine */
     ngx_rtmp_mp4_field_32(b, 0);
 
     /* system ID : com.widevine.alpha */
