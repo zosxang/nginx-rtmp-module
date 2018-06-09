@@ -541,7 +541,7 @@ ngx_rtmp_mp4_write_pssh_cenc(ngx_buf_t *b,
     ngx_rtmp_cenc_drm_info_t *drminfo)
 {
     u_char  *pos;
-    u_char   ck_sid[] = {
+    u_char   sid[] = {
         0x10, 0x77, 0xef, 0xec, 0xc0, 0xb2, 0x4d, 0x02, 
         0xac, 0xe3, 0x3c, 0x1e, 0x52, 0xe2, 0xfb, 0x4b
     };
@@ -552,7 +552,7 @@ ngx_rtmp_mp4_write_pssh_cenc(ngx_buf_t *b,
     ngx_rtmp_mp4_field_32(b, 0x01000000);
 
     /* system ID : org.w3.clearkey */
-    ngx_rtmp_mp4_data(b, ck_sid, NGX_RTMP_CENC_KEY_SIZE);
+    ngx_rtmp_mp4_data(b, sid, NGX_RTMP_CENC_KEY_SIZE);
 
     /* kid count */
     ngx_rtmp_mp4_field_32(b, 1);
@@ -560,6 +560,34 @@ ngx_rtmp_mp4_write_pssh_cenc(ngx_buf_t *b,
     /* default KID */
     ngx_rtmp_mp4_data(b, drminfo->kid, NGX_RTMP_CENC_KEY_SIZE);
 
+    /* data size */
+    ngx_rtmp_mp4_field_32(b, 0);
+
+    ngx_rtmp_mp4_update_box_size(b, pos);
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_rtmp_mp4_write_pssh_wdv(ngx_buf_t *b,
+    ngx_rtmp_cenc_drm_info_t *drminfo)
+{
+    u_char  *pos;
+    u_char   sid[] = {
+        0xed, 0xef, 0x8b, 0xa9, 0x79, 0xd6, 0x4a, 0xce, 
+        0xa3, 0xc8, 0x27, 0xdc, 0xd5, 0x1d, 0x21, 0xed
+    };
+
+    pos = ngx_rtmp_mp4_start_box(b, "pssh");
+
+    /* version and flags */
+    ngx_rtmp_mp4_field_32(b, 0);
+
+    /* system ID : com.widevine.alpha */
+    ngx_rtmp_mp4_data(b, sid, NGX_RTMP_CENC_KEY_SIZE);
+
+    /* decode base64 wdv_data */
     /* data size */
     ngx_rtmp_mp4_field_32(b, 0);
 
@@ -1211,6 +1239,9 @@ ngx_rtmp_mp4_write_moov(ngx_rtmp_session_t *s, ngx_buf_t *b,
     if (ttype == NGX_RTMP_MP4_EVIDEO_TRACK ||
         ttype == NGX_RTMP_MP4_EAUDIO_TRACK) {
         ngx_rtmp_mp4_write_pssh_cenc(b, drmi);
+        if (drmi->wdv) {
+            ngx_rtmp_mp4_write_pssh_wdv(b, drmi);
+        }
     }
 
     ngx_rtmp_mp4_update_box_size(b, pos);

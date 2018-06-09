@@ -141,7 +141,7 @@ ngx_rtmp_cenc_encrypt_sub_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *i
     size_t crypted_data_len;
 
     /* small sample : leave it in clear */
-    if (data_len <= NGX_RTMP_CENC_MIN_CLEAR) {
+    if (data_len <= NGX_RTMP_CENC_MIN_CLEAR_SIZE) {
         *clear_data_len = data_len;
         return NGX_OK;
     }
@@ -149,7 +149,7 @@ ngx_rtmp_cenc_encrypt_sub_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *i
     /* skip sufficient amount of data to leave nalu header/infos
      * in clear to conform to the norm */
     crypted_data_len = 
-        ((data_len - NGX_RTMP_CENC_MIN_CLEAR) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
+        ((data_len - NGX_RTMP_CENC_MIN_CLEAR_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
     *clear_data_len = data_len - crypted_data_len;
     
     data += *clear_data_len;
@@ -159,10 +159,10 @@ ngx_rtmp_cenc_encrypt_sub_sample(ngx_rtmp_session_t *s, uint8_t *key, uint8_t *i
 
 
 ngx_int_t
-ngx_rtmp_cenc_content_protection_pssh(ngx_rtmp_session_t *s, u_char* kid, 
-    ngx_str_t *dest_pssh)
+ngx_rtmp_cenc_content_protection_pssh(u_char* kid, ngx_str_t *dest_pssh)
 {
     ngx_str_t  src_pssh;
+    u_char     dest[NGX_RTMP_CENC_MAX_PSSH_SIZE];
 
     u_char pssh[] = {
         0x00, 0x00, 0x00, 0x34, 0x70, 0x73, 0x73, 0x68, // pssh box header
@@ -181,7 +181,7 @@ ngx_rtmp_cenc_content_protection_pssh(ngx_rtmp_session_t *s, u_char* kid,
     src_pssh.data = pssh;
 
     dest_pssh->len = ngx_base64_encoded_length(src_pssh.len);
-    dest_pssh->data = ngx_palloc(s->connection->pool, dest_pssh->len); 
+    dest_pssh->data = dest;
     
     ngx_encode_base64(dest_pssh, &src_pssh);
 

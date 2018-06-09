@@ -4,7 +4,8 @@
 
 #define NGX_RTMP_CENC_IV_SIZE (8)
 #define NGX_RTMP_CENC_KEY_SIZE (16)
-#define NGX_RTMP_CENC_MIN_CLEAR (100)
+#define NGX_RTMP_CENC_MIN_CLEAR_SIZE (100)
+#define NGX_RTMP_CENC_MAX_PSSH_SIZE (1024)
 
 
 typedef struct {
@@ -35,7 +36,7 @@ ngx_rtmp_cenc_encrypt_sub_sample(ngx_rtmp_session_t *s,
     size_t data_len, size_t *clear_data_len);
 
 ngx_int_t
-ngx_rtmp_cenc_content_protection_pssh(ngx_rtmp_session_t *s,
-    u_char* kid, ngx_str_t *dest_pssh);
+ngx_rtmp_cenc_content_protection_pssh(u_char* kid,
+    ngx_str_t *dest_pssh);
 
 #endif /* _NGX_RTMP_CENC_H_INCLUDED_ */
