@@ -8,6 +8,7 @@
     "    type=\"dynamic\"\n"                                                   \
     "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\"\n"                            \
     "    xmlns:cenc=\"urn:mpeg:cenc:2013\"\n"                                  \
+    "    xmlns:mspr=\"urn:microsoft:playready\"\n"                             \
     "    availabilityStartTime=\"%s\"\n"                                       \
     "    publishTime=\"%s\"\n"                                                 \
     "    minimumUpdatePeriod=\"PT%ui.%03uiS\"\n"                               \
@@ -63,6 +64,19 @@
     "          schemeIdUri=\""                                                 \
                  "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\">\n"          \
     "          <cenc:pssh>%V</cenc:pssh>\n"                                    \
+    "      </ContentProtection>\n"
+
+
+#define NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_MSPR                    \
+    "      <ContentProtection\n"                                               \
+    "          schemeIdUri=\""                                                 \
+                 "urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95\"\n"           \
+    "          value=\"MSPR 2.0\">\n"                                          \
+    "          <cenc:pssh>%V</cenc:pssh>\n"                                    \
+    "          <mspr:IsEncrypted>1</mspr:IsEncrypted>\n"                       \
+    "          <mspr:IV_Size>8</mspr:IV_Size>\n"                               \
+    "          <mspr:kid>%V</mspr:kid>\n"                                      \
+    "          <mspr:pro>%V</mspr:pro>\n"                                      \
     "      </ContentProtection>\n"
 
 

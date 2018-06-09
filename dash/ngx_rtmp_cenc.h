@@ -9,11 +9,13 @@
 
 
 typedef struct {
+    u_char          kid[NGX_RTMP_CENC_KEY_SIZE];
     unsigned        wdv:1;
     ngx_str_t       wdv_data;
     unsigned        mspr:1;
     ngx_str_t       mspr_data;
-    u_char          kid[NGX_RTMP_CENC_KEY_SIZE];
+    ngx_str_t       mspr_kid;
+    ngx_str_t       mspr_pro;
 } ngx_rtmp_cenc_drm_info_t;
 
 

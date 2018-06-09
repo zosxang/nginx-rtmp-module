@@ -145,6 +145,10 @@ typedef struct {
     ngx_str_t                           cenc_kid;
     ngx_flag_t                          wdv;
     ngx_str_t                           wdv_data;
+    ngx_flag_t                          mspr;
+    ngx_str_t                           mspr_data;
+    ngx_str_t                           mspr_kid;
+    ngx_str_t                           mspr_pro;
     ngx_flag_t                          repetition;
     ngx_uint_t                          clock_compensation;     // Try to compensate clock drift
                                                                 //  between client and server (on client side)
@@ -244,6 +248,34 @@ static ngx_command_t ngx_rtmp_dash_commands[] = {
       ngx_conf_set_str_slot,
       NGX_RTMP_APP_CONF_OFFSET,
       offsetof(ngx_rtmp_dash_app_conf_t, wdv_data),
+      NULL },
+
+    { ngx_string("dash_mspr"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_dash_app_conf_t, mspr),
+      NULL },
+
+    { ngx_string("dash_mspr_data"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_dash_app_conf_t, mspr_data),
+      NULL },
+
+    { ngx_string("dash_mspr_kid"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_dash_app_conf_t, mspr_kid),
+      NULL },
+
+    { ngx_string("dash_mspr_pro"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_dash_app_conf_t, mspr_pro),
       NULL },
 
     { ngx_string("dash_clock_compensation"),
@@ -444,6 +476,13 @@ ngx_rtmp_dash_write_content_protection(ngx_rtmp_session_t *s,
     if (drmi->wdv) {
          p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_WDV,
              &drmi->wdv_data);
+    }
+
+    if (drmi->mspr) {
+         p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_CONTENT_PROTECTION_PSSH_MSPR,
+             &drmi->mspr_data,
+             &drmi->mspr_kid,
+	     &drmi->mspr_pro);
     }
 
     return p;
@@ -1762,6 +1801,12 @@ ngx_rtmp_dash_publish(ngx_rtmp_session_t *s, ngx_rtmp_publish_t *v)
             ctx->drm_info.wdv = 1;
             ctx->drm_info.wdv_data = dacf->wdv_data;
         }
+        if (dacf->mspr) {
+            ctx->drm_info.mspr = 1;
+            ctx->drm_info.mspr_data = dacf->mspr_data;
+            ctx->drm_info.mspr_kid = dacf->mspr_kid;
+            ctx->drm_info.mspr_pro = dacf->mspr_pro;
+        }
     }
 
 next:
@@ -2663,6 +2708,7 @@ ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf)
     conf->repetition = NGX_CONF_UNSET;
     conf->cenc = NGX_CONF_UNSET;
     conf->wdv = NGX_CONF_UNSET;
+    conf->mspr = NGX_CONF_UNSET;
     conf->clock_compensation = NGX_CONF_UNSET;
     conf->ad_markers = NGX_CONF_UNSET;
 
@@ -2688,6 +2734,10 @@ ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_str_value(conf->cenc_kid, prev->cenc_kid, "");
     ngx_conf_merge_value(conf->wdv, prev->wdv, 0);
     ngx_conf_merge_str_value(conf->wdv_data, prev->wdv_data, "");
+    ngx_conf_merge_value(conf->mspr, prev->mspr, 0);
+    ngx_conf_merge_str_value(conf->mspr_data, prev->mspr_data, "");
+    ngx_conf_merge_str_value(conf->mspr_kid, prev->mspr_kid, "");
+    ngx_conf_merge_str_value(conf->mspr_pro, prev->mspr_pro, "");
     ngx_conf_merge_uint_value(conf->clock_compensation, prev->clock_compensation,
                               NGX_RTMP_DASH_CLOCK_COMPENSATION_OFF);
     ngx_conf_merge_str_value(conf->clock_helper_uri, prev->clock_helper_uri, "");
