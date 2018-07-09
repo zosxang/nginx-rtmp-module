@@ -608,6 +608,45 @@ ngx_rtmp_mp4_write_pssh_wdv(ngx_buf_t *b,
 
 
 static ngx_int_t
+ngx_rtmp_mp4_write_pssh_mspr(ngx_buf_t *b,
+    ngx_rtmp_cenc_drm_info_t *drmi)
+{
+    ngx_str_t   dest, src;
+    u_char     *pos;
+    u_char      buf[NGX_RTMP_CENC_MAX_PSSH_SIZE];
+
+    u_char      sid[] = {
+        0x9a, 0x04, 0xf0, 0x79, 0x98, 0x40, 0x42, 0x86, 
+        0xab, 0x92, 0xe6, 0x5b, 0xe0, 0x88, 0x5f, 0x95
+    };
+
+    pos = ngx_rtmp_mp4_start_box(b, "pssh");
+
+    /* assuming v0 pssh for playready */
+    ngx_rtmp_mp4_field_32(b, 0);
+
+    /* system ID : com.microsoft.playready */
+    ngx_rtmp_mp4_data(b, sid, NGX_RTMP_CENC_KEY_SIZE);
+
+    /* decode base64 mspr_data */
+    dest.data = buf;
+    src.len = ngx_base64_decoded_length(drmi->mspr_data.len) - 32;
+    ngx_decode_base64(&dest, &drmi->mspr_data);
+    
+    /* data size */
+    ngx_rtmp_mp4_field_32(b, src.len);
+
+    /* data */
+    ngx_rtmp_mp4_data(b, dest.data + 32, src.len);
+
+    ngx_rtmp_mp4_update_box_size(b, pos);
+
+    return NGX_OK;
+}
+
+
+
+static ngx_int_t
 ngx_rtmp_mp4_write_tenc(ngx_buf_t *b, ngx_rtmp_cenc_drm_info_t *drmi)
 {
     u_char  *pos;
@@ -1251,6 +1290,9 @@ ngx_rtmp_mp4_write_moov(ngx_rtmp_session_t *s, ngx_buf_t *b,
         ngx_rtmp_mp4_write_pssh_cenc(b, drmi);
         if (drmi->wdv) {
             ngx_rtmp_mp4_write_pssh_wdv(b, drmi);
+        }
+        if (drmi->mspr) {
+            ngx_rtmp_mp4_write_pssh_mspr(b, drmi);
         }
     }
 
