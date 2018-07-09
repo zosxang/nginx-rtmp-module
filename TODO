@@ -14,5 +14,5 @@
  - add sig for wdv //OK
  - add struct for drm info // OK
  - add pssh in init file for wdv // OK
- - add msplayready support // WIP
+ - add msplayready support // OK need pssh in init file ?
 
