@@ -43,10 +43,15 @@ The implementation is based on the ISO_IEC_23001-7_2016 normative document.
 I also took lot of inspiration on kaltura nginx-vod module.
 
 It implement the minimal requirement of the norm, the 'cenc' scheme, AES-CTR mode full sample and video NAL Subsample encryption.
+
 Audio track are encrypted in full sample mode with AES-CTR.
+
 Video track are encrypted in sub sample mode, assuming one NALU per frame, using enough clear text size at the beginning of the frame to keep the NAL header in clear. (the module does not analyse NAL Headers). 
+
 The clear size is rounded to make encrypted size of data a multiple of the AES-CRT block size.
+
 The implementation allow only one KID:KEY couple used for all tracks.
+
 The implementation use 64bits IVs.
 
 ### Conformity :
