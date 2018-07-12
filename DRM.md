@@ -1,11 +1,11 @@
 
-DRM.
+## DRM Common Encryption
 
 This fork give the possibility of packaging dash "protected" stream.
 Concretely it implement the minimal requirement of "common-encryption" as described in ISO/IEC 23001-7:2015, Information technology — MPEG systems technologies — Part 7: Common encryption in ISO Base Media File Format files - 2nd Edition.
 You can read a brief description here : "https://w3c.github.io/encrypted-media/format-registry/stream/mp4.html#bib-CENC"
 
-How to use it :
+### How to use it :
 
 You need at least to enable common_encryption and provide one key and one key id with the following directives :
 
@@ -35,9 +35,9 @@ dash_mspr_kid AAATH/7xxxfUbpB8mhqA==; # base64 encoded playready kid
 dash_mspr_pro kAIAAAEAAQCGAjwAVwBSAE0ASABFAEEARA...; # base64 encoded playready PRO (Playready Object)
 ```
 
-Implementation :
+### Implementation :
 
-TLDR; This was quite an adventure
+_TLDR;_ This was quite an adventure
 
 The implementation is based on the ISO_IEC_23001-7_2016 normative document.
 I also took lot of inspiration on kaltura nginx-vod module.
@@ -49,7 +49,7 @@ The clear size is rounded to make encrypted size of data a multiple of the AES-C
 The implementation allow only one KID:KEY couple used for all tracks.
 The implementation use 64bits IVs.
 
-Conformity :
+### Conformity :
 
 This implementation have been tested with and known working :
 
