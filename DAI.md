@@ -8,15 +8,19 @@ This is the responsability of the player to watch this event, and to treat it.
 
 Options to enable ad marker processing are :
 
-- dash_ad_markers off|on_cuepoint|on_cuepoint_scte35;
+```
+dash_ad_markers off|on_cuepoint|on_cuepoint_scte35;
+```
 
-  - on_cuepoint is the simple variant (without scte message) 
-  - on_cuepoint_scte35 is the scte35 variant with program_id metadata 
+ - on_cuepoint is the simple variant (without scte message) 
+ - on_cuepoint_scte35 is the scte35 variant with program_id metadata 
 
-- dash_ad_markers_timehack off|on;
+```
+dash_ad_markers_timehack off|on;
+```
 
-  - off implement the standard timing as described in reference documentation
-  - on implement a hack on the start time. This is need to be more resilient. Warning this need a patched version of your player. (currently this is what is test and in production with a  one line patch on dashjs)
+ - off implement the standard timing as described in reference documentation
+ - on implement a hack on the start time. This is need to be more resilient. Warning this need a patched version of your player. (currently this is what is test and in production with a  one line patch on dashjs)
 
 Currently there is only elemental encoder tested and compliant.
 

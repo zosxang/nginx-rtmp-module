@@ -71,10 +71,10 @@ Playready:
 
 Bitmovin player seem also to work.
 
-Thanks: 
+### Thanks: 
 
-Thanks to all the opensource communautie.
-Special thanks to Eran Kornblau from Kaltura, Joey Parrish, and Jacob Timble.
+- Thanks to all the opensource communautie.
+- Special thanks to Eran Kornblau from Kaltura, Joey Parrish, and Jacob Timble.
 
 
 
