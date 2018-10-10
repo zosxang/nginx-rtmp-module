@@ -73,7 +73,7 @@ Bitmovin player seem also to work.
 
 ### Thanks: 
 
-- Thanks to all the opensource communautie.
+- Thanks to all the opensource communauty.
 - Special thanks to Eran Kornblau from Kaltura, Joey Parrish, and Jacob Timble.
 
 
