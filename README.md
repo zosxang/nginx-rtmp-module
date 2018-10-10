@@ -6,7 +6,7 @@ Forked from https://github.com/sergey-dryabzhinsky/ which was the most up to dat
 
 Notable new features :
 
- - add the possibility to have dash variant like (show below configuration, using ffmpeg to trancode in 3 variants).
+ - add the possibility to make adaptative streaming (show below configuration, using ffmpeg to trancode in 3 variants, and produce one manifest).
    note the "max" flag which indicate which representation should have max witdh and height and so use it to create the variant manifest.
    you can also use any encoder to directly push the variant.
  - add the support of using repetition in manifest to shorten them (option dash_repetition) (thanks to Streamroot)
