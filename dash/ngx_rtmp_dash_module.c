@@ -36,6 +36,7 @@ static ngx_int_t ngx_rtmp_dash_ensure_directory(ngx_rtmp_session_t *s);
 #define NGX_RTMP_DASH_GMT_LENGTH        sizeof("1970-09-28T12:00:00+06:00")
 
 typedef struct {
+    uint64_t                            u_timestamp;
     uint32_t                            timestamp;
     uint32_t                            duration;
 } ngx_rtmp_dash_frag_t;
@@ -161,6 +162,7 @@ typedef struct {
     ngx_path_t                         *slot;
     ngx_array_t                        *variant;
     ngx_uint_t                          ad_markers;
+    ngx_flag_t                          ad_markers_timehack;
 } ngx_rtmp_dash_app_conf_t;
 
 
@@ -306,6 +308,13 @@ static ngx_command_t ngx_rtmp_dash_commands[] = {
       offsetof(ngx_rtmp_dash_app_conf_t, ad_markers),
       &ngx_rtmp_dash_ad_markers_type_slots },
 
+    { ngx_string("dash_ad_markers_timehack"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_dash_app_conf_t, ad_markers_timehack),
+      NULL },
+
     ngx_null_command
 };
 
@@ -443,9 +452,8 @@ ngx_rtmp_dash_write_segment_timeline(ngx_rtmp_session_t *s, ngx_rtmp_dash_ctx_t 
                 p = ngx_rtmp_dash_write_segment(p, last, t, d, r);
             }
         } else {
-            t = f->timestamp;
-            d = f->duration;
-            p = ngx_rtmp_dash_write_segment(p, last, t, d, 0);
+            //p = ngx_rtmp_dash_write_segment(p, last, f->u_timestamp, f->duration, 0);
+            p = ngx_rtmp_dash_write_segment(p, last, f->timestamp, f->duration, 0);
         }
     }
 
@@ -549,11 +557,19 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
      * Cos segments time counting from it
      */
     ngx_libc_gmtime(start_time, &tm);
+
     *ngx_sprintf(available_time, "%4d-%02d-%02dT%02d:%02d:%02dZ",
              tm.tm_year + 1900, tm.tm_mon + 1,
              tm.tm_mday, tm.tm_hour,
              tm.tm_min, tm.tm_sec
              ) = 0;
+    /*
+    *ngx_sprintf(available_time, "%4d-%02d-%02dT%02d:%02d:%02dZ",
+             1970, 1,
+             1, 0,
+             0, 0 
+             ) = 0;
+    */
 
     /* Stream publish time */
     *ngx_sprintf(publish_time, "%s", available_time) = 0;
@@ -889,11 +905,20 @@ ngx_rtmp_dash_write_playlist(ngx_rtmp_session_t *s)
      * Cos segments time counting from it
      */
     ngx_libc_gmtime(start_time, &tm);
+
     *ngx_sprintf(available_time, "%4d-%02d-%02dT%02d:%02d:%02dZ",
              tm.tm_year + 1900, tm.tm_mon + 1,
              tm.tm_mday, tm.tm_hour,
              tm.tm_min, tm.tm_sec
              ) = 0;
+
+    /*
+    *ngx_sprintf(available_time, "%4d-%02d-%02dT%02d:%02d:%02dZ",
+             1970, 1,
+             1, 0,
+             0, 0 
+             ) = 0;
+    */
 
     /* Stream publish time */
     *ngx_sprintf(publish_time, "%s", available_time) = 0;
@@ -1237,6 +1262,7 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
     ngx_fd_t                   fd;
     ngx_buf_t                  b;
     ngx_rtmp_dash_ctx_t       *ctx;
+    ngx_rtmp_dash_app_conf_t  *dacf;
     ngx_rtmp_dash_frag_t      *f;
 
     static u_char              buffer[NGX_RTMP_DASH_BUFSIZE];
@@ -1250,6 +1276,7 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
                    t->id, t->type, t->earliest_pres_time);
 
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_dash_module);
+    dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
 
     b.start = buffer;
     b.end = buffer + sizeof(buffer);
@@ -1263,13 +1290,18 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
             t->earliest_pres_time, t->latest_pres_time, ctx->cuepoint_starttime, 
             ctx->cuepoint_endtime, ctx->cuepoint_duration, ctx->cuepoint_id);
 
-        /* should be ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time, 
-           thanks to dashjs
-         */
-        ngx_rtmp_mp4_write_emsg(&b, 0, 
-                                ctx->cuepoint_starttime, 
-                                ctx->cuepoint_duration,
-                                ctx->cuepoint_id);
+        if (dacf->ad_markers_timehack) {
+            /* dashjs bug : use delta as an absolute timestamp */
+            ngx_rtmp_mp4_write_emsg(&b, 0, 
+                ctx->cuepoint_starttime, 
+                ctx->cuepoint_duration,
+                ctx->cuepoint_id);
+        } else {
+            ngx_rtmp_mp4_write_emsg(&b, t->earliest_pres_time, 
+                ctx->cuepoint_starttime, 
+                ctx->cuepoint_duration,
+                ctx->cuepoint_id);
+        }
 
         pos = b.last;
         b.last = pos;
@@ -1321,6 +1353,9 @@ ngx_rtmp_dash_close_fragment(ngx_rtmp_session_t *s, ngx_rtmp_dash_track_t *t)
 
     *ngx_sprintf(ctx->stream.data + ctx->stream.len, "%uD.m4%c",
                  f->timestamp, t->type) = 0;
+
+    //*ngx_sprintf(ctx->stream.data + ctx->stream.len, "%uL.m4%c",
+    //             f->u_timestamp, t->type) = 0;
 
     fd = ngx_open_file(ctx->stream.data, NGX_FILE_RDWR,
                        NGX_FILE_TRUNCATE, NGX_FILE_DEFAULT_ACCESS);
@@ -1911,7 +1946,9 @@ ngx_rtmp_dash_update_fragments(ngx_rtmp_session_t *s, ngx_int_t boundary,
         ngx_rtmp_dash_open_fragments(s);
 
         f = ngx_rtmp_dash_get_frag(s, ctx->nfrags);
+
         f->timestamp = timestamp;
+        f->u_timestamp = ngx_time() * 1000;
     }
 }
 
@@ -2711,6 +2748,7 @@ ngx_rtmp_dash_create_app_conf(ngx_conf_t *cf)
     conf->mspr = NGX_CONF_UNSET;
     conf->clock_compensation = NGX_CONF_UNSET;
     conf->ad_markers = NGX_CONF_UNSET;
+    conf->ad_markers_timehack = NGX_CONF_UNSET;
 
     return conf;
 }
@@ -2743,6 +2781,7 @@ ngx_rtmp_dash_merge_app_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_str_value(conf->clock_helper_uri, prev->clock_helper_uri, "");
     ngx_conf_merge_uint_value(conf->ad_markers, prev->ad_markers,
                               NGX_RTMP_DASH_AD_MARKERS_OFF);
+    ngx_conf_merge_value(conf->ad_markers_timehack, prev->ad_markers_timehack, 0);
 
     if (conf->fraglen) {
         conf->winfrags = conf->playlen / conf->fraglen;

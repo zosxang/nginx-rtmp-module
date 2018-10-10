@@ -4,6 +4,9 @@
 - need re-upstream // wait response
 - rewritte the variant code for dash, using memory ?
 
+- add option emsg_timestamp_hack
+
+
 - test common encryption code (OK clearkey, Widevine both on chrome/firefox!)
 - need to write some doc about cenc/drm implem
 - refacto code for writing content protection in manifest // OK

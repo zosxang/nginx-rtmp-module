@@ -133,6 +133,8 @@
     "    </AdaptationSet>\n"
 
 
+//    "             <S t=\"%uL\" d=\"%uD\"/>\n"
+
 #define NGX_RTMP_DASH_MANIFEST_TIME                                            \
     "             <S t=\"%uD\" d=\"%uD\"/>\n"
 

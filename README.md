@@ -9,9 +9,9 @@ Notable new features :
  - add the possibility to have dash variant like (show below configuration, using ffmpeg to trancode in 3 variants).
    note the "max" flag which indicate which representation should have max witdh and height and so use it to create the variant manifest.
    you can also use any encoder to directly push the variant.
- - add the support of using repetition in manifest to shorten them (optopn dash_repetition)
- - add the support of common-encryption; currently working DRM are ClearKey/Widevine/Playready (see specific doc Here)
- - add the support of inband scte event, from rtmp AMF event to dash (InbandEvent in manifest and emsg box in mp4 fragment)
+ - add the support of using repetition in manifest to shorten them (optoin dash_repetition)
+ - add the support of common-encryption; currently working DRM are ClearKey/Widevine/Playready (see specific doc [here](DRM.md))
+ - add the support of ad insertion break event, from rtmp AMF message to dash (InbandEvent in manifest and emsg box in mp4 fragment, see doc [here](DAI.md))
 
 
 See original doc here for full list of options.
