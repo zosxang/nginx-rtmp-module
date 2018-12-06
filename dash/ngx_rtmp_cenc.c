@@ -1,10 +1,10 @@
 
 
+#include <ngx_config.h>
+#include <ngx_core.h>
 #include <openssl/aes.h>
 #include <openssl/rand.h>
 #include <openssl/evp.h>
-#include <ngx_config.h>
-#include <ngx_core.h>
 #include <ngx_rtmp.h>
 #include "ngx_rtmp_cenc.h"
 
