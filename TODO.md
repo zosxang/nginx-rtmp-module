@@ -21,3 +21,6 @@
 - add pssh in init file for wdv // OK
 - add msplayready support // OK need pssh in init file 
 
+
+cd /home/ubuntu/nginx-rtmp-module/ && git pull origin dev && cd /root/nginx/nginx-1.16.0
+

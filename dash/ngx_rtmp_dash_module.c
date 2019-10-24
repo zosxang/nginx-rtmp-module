@@ -498,7 +498,7 @@ ngx_rtmp_dash_write_content_protection(ngx_rtmp_session_t *s,
 
 u_char* concat(u_char *src1, u_char *src2, int start_index)
 {
-  for(int i = 0; i < sizeof(src2); i++)
+  for(int i = 0; i < int(sizeof(src2)); i++)
     {
       src1[start_index + i] = src2[i];
       
