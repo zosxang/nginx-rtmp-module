@@ -537,7 +537,7 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     static u_char              seg_path[NGX_MAX_PATH + 1];
 
     static int                TOTAL_BUFFER_PARTS = 10;
-    static u_char             buffr[NGX_RTMP_DASH_BUFSIZE * TOTAL_BUFFER_PARTS];
+    u_char                    buffr[NGX_RTMP_DASH_BUFSIZE * TOTAL_BUFFER_PARTS];
     int                       buffr_index =0;
 
     dacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_dash_module);
@@ -657,8 +657,8 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     p = ngx_slprintf(p, last, NGX_RTMP_DASH_MANIFEST_PERIOD);
     
     n = ngx_write_fd(fd, buffer, p - buffer);
-    concat(buffr, buffer)
-    buffr_index = buffr_index + sizeof(buffer)
+    concat(buffr, buffer, buffr_index);
+    buffr_index = buffr_index + sizeof(buffer);
     ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "buffr '%s' %i",  buffr, buffr_index);
     sep = (dacf->nested ? "/" : "-");
     var = dacf->variant->elts;
@@ -830,7 +830,6 @@ ngx_rtmp_dash_write_variant_playlist(ngx_rtmp_session_t *s)
     }
 
     ngx_close_file(fd);
-    ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "renaming file '%s':'%s'", src, dst);
     if (ngx_rtmp_dash_rename_file(ctx->var_playlist_bak.data, ctx->var_playlist.data)
         == NGX_FILE_ERROR)
     {
